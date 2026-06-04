@@ -1467,12 +1467,12 @@ function renderMeds(){
       const t = new Date(takenLog.taken_at)
       const timeStr = t.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})
       statusBadge = `✅ Taken at ${timeStr}`
-      statusColor = 'var(--teal,#59C9BC)'
-      actionBtns = `<button class="btn btn-ghost btn-sm" onclick="correctMedLog('${med.id}','${today}','${takenLog.id}')">Correct</button>`
+      statusColor = '#59C9BC'
+      actionBtns = `<button class="btn btn-ghost btn-sm" onclick="openCorrectLog('${med.id}','${today}','${takenLog.id}','${takenLog.status}','${takenLog.taken_at}')">✏️ Edit Time</button>`
     } else if(skipLog){
       statusBadge = '⏭️ Skipped today'
       statusColor = 'var(--text3)'
-      actionBtns = `<button class="btn btn-ghost btn-sm" onclick="correctMedLog('${med.id}','${today}','${skipLog.id}')">Correct</button>`
+      actionBtns = `<button class="btn btn-ghost btn-sm" onclick="openCorrectLog('${med.id}','${today}','${skipLog.id}','${skipLog.status}','${skipLog.taken_at}')">✏️ Correct</button>`
     } else if(missedLog){
       statusBadge = '❌ Missed'
       statusColor = 'var(--coral)'
@@ -1532,7 +1532,9 @@ function renderMeds(){
       else if(date > todayStr()){ color='#1e2236'; title='Future' }
       else{ color='#3d2535'; title='No log' }
 
-      return `<div title="${date}: ${title}" style="width:18px;height:18px;border-radius:4px;background:${color};flex-shrink:0;cursor:default"></div>`
+      const clickable = date <= todayStr() && relevant
+      const onclick = clickable ? `onclick="openHistoryLog('${med.id}','${date}')"` : ''
+      return `<div title="${date}: ${title}${clickable?' (click to edit)':''}" ${onclick} style="width:18px;height:18px;border-radius:4px;background:${color};flex-shrink:0;cursor:${clickable?'pointer':'default'};transition:transform 0.1s" onmouseenter="if(${clickable})this.style.transform='scale(1.3)'" onmouseleave="this.style.transform='scale(1)'"></div>`
     }).join('')
 
     return `<div class="card card-pad" style="margin-bottom:12px">
@@ -1586,22 +1588,55 @@ async function logMed(medId, status, takenAt=null){
   renderMeds()
 }
 
-function correctMedLog(medId, date, logId){
-  const log = S.medLogs.find(l=>l.id===logId)
-  const existing = log?.taken_at ? new Date(log.taken_at) : new Date()
+function openCorrectLog(medId, date, logId, currentStatus, takenAt){
+  const med = S.meds.find(m=>m.id===medId)
+  const existing = takenAt && takenAt!=='undefined' ? new Date(takenAt) : new Date()
   const localTime = `${String(existing.getHours()).padStart(2,'0')}:${String(existing.getMinutes()).padStart(2,'0')}`
-  openModal('Correct Medication Log', `
-    <div class="modal-note">Correcting log for <strong>${S.meds.find(m=>m.id===medId)?.name}</strong> on ${fmtDate(date)}</div>
+  openModal('Edit Medication Log', `
+    <div class="modal-note"><strong>${esc(med?.name)}</strong> — ${fmtDate(date)}</div>
     <div class="form-group">
       <label class="form-label">Time Taken</label>
       <input type="time" id="correctTime" class="form-input" value="${localTime}">
     </div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px">
-      <button class="btn btn-primary" onclick="updateMedLog('${logId}','taken','${date}')">✅ Mark Taken</button>
-      <button class="btn btn-ghost" onclick="updateMedLog('${logId}','skip','${date}')">⏭️ Mark Skipped</button>
-      <button class="btn btn-danger" onclick="updateMedLog('${logId}','missed','${date}')">❌ Mark Missed</button>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+      <button class="btn btn-primary btn-sm" onclick="updateMedLog('${logId}','taken','${date}')">✅ Taken</button>
+      <button class="btn btn-ghost btn-sm" onclick="updateMedLog('${logId}','skip','${date}')">⏭️ Skipped</button>
+      <button class="btn btn-danger btn-sm" onclick="updateMedLog('${logId}','missed','${date}')">❌ Missed</button>
     </div>
     <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button></div>`)
+}
+
+function openHistoryLog(medId, date){
+  const med = S.meds.find(m=>m.id===medId)
+  const existingLog = S.medLogs.find(l=>l.med_id===medId&&l.date===date)
+  if(existingLog){
+    openCorrectLog(medId, date, existingLog.id, existingLog.status, existingLog.taken_at)
+  } else {
+    // No log yet — create one
+    const now = new Date()
+    const localTime = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`
+    openModal(`Log for ${fmtDate(date)}`, `
+      <div class="modal-note"><strong>${esc(med?.name)}</strong> — ${fmtDate(date)}</div>
+      <div class="form-group">
+        <label class="form-label">Time Taken</label>
+        <input type="time" id="historyTime" class="form-input" value="${localTime}">
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:4px">
+        <button class="btn btn-primary btn-sm" onclick="saveHistoryLog('${medId}','${date}','taken')">✅ Taken</button>
+        <button class="btn btn-ghost btn-sm" onclick="saveHistoryLog('${medId}','${date}','skip')">⏭️ Skipped</button>
+        <button class="btn btn-danger btn-sm" onclick="saveHistoryLog('${medId}','${date}','missed')">❌ Missed</button>
+      </div>
+      <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button></div>`)
+  }
+}
+
+async function saveHistoryLog(medId, date, status){
+  const timeInput = document.getElementById('historyTime')
+  const takenAt = timeInput ? new Date(`${date}T${timeInput.value}:00`).toISOString() : new Date(`${date}T12:00:00`).toISOString()
+  const row = {id:uid(), med_id:medId, taken_at:takenAt, status, date}
+  const r = await dbIns('med_logs', row)
+  if(r) S.medLogs.push(r)
+  closeModal(); renderMeds()
 }
 
 async function updateMedLog(logId, status, date){
