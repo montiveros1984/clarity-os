@@ -1476,7 +1476,7 @@ function renderMeds(){
     } else if(missedLog){
       statusBadge = '❌ Missed'
       statusColor = 'var(--coral)'
-      actionBtns = `<button class="btn btn-success btn-sm" onclick="logMed('${med.id}','taken')">Log as Taken</button>`
+      actionBtns = `<button class="btn btn-success btn-sm" onclick="openLogTaken('${med.id}')">Log as Taken</button>`
     } else if(!isRelevantToday){
       statusBadge = med.frequency === 'weekly' ? `📅 Due ${med.reminder_day}s` : '—'
       statusColor = 'var(--text3)'
@@ -1485,8 +1485,8 @@ function renderMeds(){
       statusBadge = '⏳ Pending'
       statusColor = 'var(--gold,#fbbf24)'
       actionBtns = `
-        <button class="btn btn-primary btn-sm" onclick="logMed('${med.id}','taken')">Mark Taken</button>
-        <button class="btn btn-ghost btn-sm" onclick="logMed('${med.id}','skip')">Skip</button>`
+        <button class="btn btn-primary btn-sm" onclick="openLogTaken('${med.id}')">Mark Taken</button>
+        <button class="btn btn-ghost btn-sm" onclick="logMed('${med.id}','skip',null)">Skip</button>`
     }
 
     const reminders = med.reminders || []
@@ -1547,14 +1547,39 @@ function renderMeds(){
   }).join('')
 }
 
-async function logMed(medId, status){
+function openLogTaken(medId){
+  const med = S.meds.find(m=>m.id===medId)
+  const now = new Date()
+  const localTime = `${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`
+  openModal('Log Medication Taken', `
+    <div class="modal-note">When did you take <strong>${esc(med?.name)}</strong>?</div>
+    <div class="form-group">
+      <label class="form-label">Time Taken</label>
+      <input type="time" id="medTakenTime" class="form-input" value="${localTime}">
+    </div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="saveTakenTime('${medId}')">Log Taken</button>
+    </div>`)
+}
+
+async function saveTakenTime(medId){
+  const timeVal = document.getElementById('medTakenTime').value
   const today = todayStr()
+  const takenAt = timeVal ? new Date(`${today}T${timeVal}:00`).toISOString() : new Date().toISOString()
+  closeModal()
+  await logMed(medId, 'taken', takenAt)
+}
+
+async function logMed(medId, status, takenAt=null){
+  const today = todayStr()
+  const at = takenAt || new Date().toISOString()
   const existing = S.medLogs.find(l => l.med_id === medId && l.date === today && ['taken','skip','missed'].includes(l.status))
   if(existing){
-    await db.from('med_logs').update({status, taken_at: new Date().toISOString()}).eq('id', existing.id)
-    S.medLogs = S.medLogs.map(l => l.id === existing.id ? {...l, status, taken_at: new Date().toISOString()} : l)
+    await db.from('med_logs').update({status, taken_at: at}).eq('id', existing.id)
+    S.medLogs = S.medLogs.map(l => l.id === existing.id ? {...l, status, taken_at: at} : l)
   } else {
-    const row = {id:uid(), med_id:medId, taken_at:new Date().toISOString(), status, date:today}
+    const row = {id:uid(), med_id:medId, taken_at:at, status, date:today}
     const r = await dbIns('med_logs', row)
     if(r) S.medLogs.push(r)
   }
@@ -1562,19 +1587,30 @@ async function logMed(medId, status){
 }
 
 function correctMedLog(medId, date, logId){
+  const log = S.medLogs.find(l=>l.id===logId)
+  const existing = log?.taken_at ? new Date(log.taken_at) : new Date()
+  const localTime = `${String(existing.getHours()).padStart(2,'0')}:${String(existing.getMinutes()).padStart(2,'0')}`
   openModal('Correct Medication Log', `
     <div class="modal-note">Correcting log for <strong>${S.meds.find(m=>m.id===medId)?.name}</strong> on ${fmtDate(date)}</div>
+    <div class="form-group">
+      <label class="form-label">Time Taken</label>
+      <input type="time" id="correctTime" class="form-input" value="${localTime}">
+    </div>
     <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px">
-      <button class="btn btn-primary" onclick="updateMedLog('${logId}','taken')">✅ Mark Taken</button>
-      <button class="btn btn-ghost" onclick="updateMedLog('${logId}','skip')">⏭️ Mark Skipped</button>
-      <button class="btn btn-danger" onclick="updateMedLog('${logId}','missed')">❌ Mark Missed</button>
+      <button class="btn btn-primary" onclick="updateMedLog('${logId}','taken','${date}')">✅ Mark Taken</button>
+      <button class="btn btn-ghost" onclick="updateMedLog('${logId}','skip','${date}')">⏭️ Mark Skipped</button>
+      <button class="btn btn-danger" onclick="updateMedLog('${logId}','missed','${date}')">❌ Mark Missed</button>
     </div>
     <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button></div>`)
 }
 
-async function updateMedLog(logId, status){
-  await db.from('med_logs').update({status, taken_at: new Date().toISOString()}).eq('id', logId)
-  S.medLogs = S.medLogs.map(l => l.id === logId ? {...l, status} : l)
+async function updateMedLog(logId, status, date){
+  const timeInput = document.getElementById('correctTime')
+  const at = timeInput && date
+    ? new Date(`${date}T${timeInput.value}:00`).toISOString()
+    : new Date().toISOString()
+  await db.from('med_logs').update({status, taken_at: at}).eq('id', logId)
+  S.medLogs = S.medLogs.map(l => l.id === logId ? {...l, status, taken_at: at} : l)
   closeModal(); renderMeds()
 }
 
