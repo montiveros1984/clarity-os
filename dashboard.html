@@ -352,9 +352,61 @@ tbody tr.paid td{ opacity: 0.38; }
   .bal-chip .val{ font-size: 13px; }
   .week-stats{ display: none; }
 }
+/* ─── PIN SCREEN ─────────────────────────────── */
+.pin-overlay{
+  position:fixed;inset:0;z-index:9999;
+  background:linear-gradient(180deg,#3d1f38 0%,#2e1a30 18%,#1e1f3a 42%,#161828 68%,#111420 100%);
+  display:flex;flex-direction:column;align-items:center;justify-content:center;
+}
+.pin-logo{font-size:22px;font-weight:700;color:#EDE8F0;letter-spacing:-0.02em;margin-bottom:6px;}
+.pin-logo span{color:rgba(232,180,188,0.6);font-weight:400;}
+.pin-subtitle{font-size:13px;color:rgba(232,180,188,0.5);margin-bottom:36px;letter-spacing:0.04em;}
+.pin-title{font-size:16px;color:#EDE8F0;font-weight:500;margin-bottom:24px;text-align:center;padding:0 20px;}
+.pin-dots{display:flex;gap:14px;margin-bottom:32px;}
+.pin-dot{width:14px;height:14px;border-radius:50%;border:2px solid rgba(232,180,188,0.3);background:transparent;transition:all 0.15s;}
+.pin-dot.filled{background:#E8B4BC;border-color:#E8B4BC;box-shadow:0 0 8px rgba(232,180,188,0.4);}
+.pin-error{font-size:13px;color:#D4705A;margin-bottom:16px;min-height:20px;text-align:center;}
+.pin-pad{display:grid;grid-template-columns:repeat(3,72px);gap:10px;}
+.pin-key{width:72px;height:72px;border-radius:50%;background:rgba(255,255,255,0.07);border:1px solid rgba(255,255,255,0.1);color:#EDE8F0;font-size:22px;font-weight:500;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all 0.15s;user-select:none;}
+.pin-key:hover{background:rgba(232,180,188,0.15);border-color:rgba(232,180,188,0.3);}
+.pin-key:active{transform:scale(0.93);}
+.pin-key.del{font-size:16px;}
+.pin-key.empty{background:transparent;border:none;cursor:default;}
+.pin-key.empty:hover{background:transparent;}
+.pin-forgot{margin-top:24px;font-size:12px;color:rgba(232,180,188,0.4);cursor:pointer;text-decoration:underline;}
+.pin-forgot:hover{color:rgba(232,180,188,0.7);}
 </style>
 </head>
 <body>
+
+<!-- PIN SCREEN -->
+<div class="pin-overlay" id="pinOverlay">
+  <div class="pin-logo">Clarity <span>OS</span></div>
+  <div class="pin-subtitle">Your personal life OS</div>
+  <div class="pin-title" id="pinTitle">Enter your PIN</div>
+  <div class="pin-dots" id="pinDots">
+    <div class="pin-dot" id="pd0"></div>
+    <div class="pin-dot" id="pd1"></div>
+    <div class="pin-dot" id="pd2"></div>
+    <div class="pin-dot" id="pd3"></div>
+  </div>
+  <div class="pin-error" id="pinError"></div>
+  <div class="pin-pad">
+    <button class="pin-key" onclick="pinKey('1')">1</button>
+    <button class="pin-key" onclick="pinKey('2')">2</button>
+    <button class="pin-key" onclick="pinKey('3')">3</button>
+    <button class="pin-key" onclick="pinKey('4')">4</button>
+    <button class="pin-key" onclick="pinKey('5')">5</button>
+    <button class="pin-key" onclick="pinKey('6')">6</button>
+    <button class="pin-key" onclick="pinKey('7')">7</button>
+    <button class="pin-key" onclick="pinKey('8')">8</button>
+    <button class="pin-key" onclick="pinKey('9')">9</button>
+    <div class="pin-key empty"></div>
+    <button class="pin-key" onclick="pinKey('0')">0</button>
+    <button class="pin-key del" onclick="pinBackspace()">⌫</button>
+  </div>
+  <div class="pin-forgot" id="pinForgot" onclick="pinForgot()" style="display:none">Forgot PIN?</div>
+</div>
 
 <!-- ─── HEADER ──────────────────────────────────── -->
 <div class="header">
@@ -1765,6 +1817,59 @@ async function saveBalance(id){
 // ═══════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════
+// ═══════════════════════════════════════════════
+// PIN SCREEN
+// ═══════════════════════════════════════════════
+const PIN_KEY='clarity_pin'
+let pinBuffer='',pinMode='enter',pinFirst=''
+function pinInit(){
+  const stored=localStorage.getItem(PIN_KEY)
+  if(!stored){ pinMode='set'; document.getElementById('pinTitle').textContent='Create a 4-digit PIN' }
+  else{ pinMode='enter'; document.getElementById('pinTitle').textContent='Enter your PIN'; document.getElementById('pinForgot').style.display='' }
+}
+function pinKey(d){
+  if(pinBuffer.length>=4) return
+  pinBuffer+=d; updatePinDots()
+  if(pinBuffer.length===4) setTimeout(pinSubmit,120)
+}
+function pinBackspace(){ pinBuffer=pinBuffer.slice(0,-1); updatePinDots(); document.getElementById('pinError').textContent='' }
+function updatePinDots(){ for(let i=0;i<4;i++) document.getElementById('pd'+i).classList.toggle('filled',i<pinBuffer.length) }
+function pinSubmit(){
+  if(pinMode==='set'){
+    pinFirst=pinBuffer; pinBuffer=''; updatePinDots(); pinMode='confirm'
+    document.getElementById('pinTitle').textContent='Confirm your PIN'
+    document.getElementById('pinError').textContent=''
+  } else if(pinMode==='confirm'){
+    if(pinBuffer===pinFirst){ localStorage.setItem(PIN_KEY,btoa(pinBuffer)); pinUnlock() }
+    else{
+      document.getElementById('pinError').textContent="PINs don't match — try again"
+      pinBuffer=''; pinFirst=''; updatePinDots(); pinMode='set'
+      document.getElementById('pinTitle').textContent='Create a 4-digit PIN'
+    }
+  } else {
+    if(btoa(pinBuffer)===localStorage.getItem(PIN_KEY)){ pinUnlock() }
+    else{ document.getElementById('pinError').textContent='Incorrect PIN — try again'; pinBuffer=''; updatePinDots() }
+  }
+}
+function pinUnlock(){
+  const o=document.getElementById('pinOverlay')
+  o.style.transition='opacity 0.3s'; o.style.opacity='0'
+  setTimeout(()=>o.style.display='none',300)
+}
+function pinForgot(){
+  if(confirm('Reset your PIN? You will need to create a new one.')){
+    localStorage.removeItem(PIN_KEY); pinBuffer=''; pinFirst=''; updatePinDots()
+    pinMode='set'; document.getElementById('pinTitle').textContent='Create a new 4-digit PIN'
+    document.getElementById('pinError').textContent=''; document.getElementById('pinForgot').style.display='none'
+  }
+}
+document.addEventListener('keydown',e=>{
+  if(document.getElementById('pinOverlay').style.display==='none') return
+  if(e.key>='0'&&e.key<='9') pinKey(e.key)
+  else if(e.key==='Backspace') pinBackspace()
+})
+pinInit()
+
 async function init(){
   await loadAll()
   await seedIfEmpty()
