@@ -1518,32 +1518,49 @@ function renderMeds(){
   }
 
   document.getElementById('medsHistory').innerHTML = S.meds.map(med => {
-    const dots = last30.map(date => {
+    const isWeekly = med.frequency === 'weekly'
+
+    // For weekly meds, only show relevant days. For daily, show all 30.
+    const relevantDates = isWeekly
+      ? last30.filter(date => dayNames[new Date(date+'T12:00:00').getDay()] === med.reminder_day?.toLowerCase())
+      : last30
+
+    const dots = relevantDates.map(date => {
       const log = S.medLogs.find(l => l.med_id === med.id && l.date === date)
-      const isWeekly = med.frequency === 'weekly'
-      const dayOfWeek = dayNames[new Date(date+'T12:00:00').getDay()]
-      const relevant = !isWeekly || dayOfWeek === med.reminder_day?.toLowerCase()
+      const isFuture = date > todayStr()
 
       let color, title
       if(log?.status === 'taken'){ color='#59C9BC'; title='Taken' }
       else if(log?.status === 'skip'){ color='#5c6070'; title='Skipped' }
       else if(log?.status === 'missed'){ color='#D4705A'; title='Missed' }
-      else if(!relevant){ color='#1e2236'; title='N/A' }
-      else if(date > todayStr()){ color='#1e2236'; title='Future' }
-      else{ color='#3d2535'; title='No log' }
+      else if(isFuture){ color='#1e2236'; title='Future' }
+      else{ color='#3d2535'; title='No log — click to add' }
 
-      const clickable = date <= todayStr() && relevant
+      const clickable = !isFuture
       const onclick = clickable ? `onclick="openHistoryLog('${med.id}','${date}')"` : ''
-      return `<div title="${date}: ${title}${clickable?' (click to edit)':''}" ${onclick} style="width:18px;height:18px;border-radius:4px;background:${color};flex-shrink:0;cursor:${clickable?'pointer':'default'};transition:transform 0.1s" onmouseenter="if(${clickable})this.style.transform='scale(1.3)'" onmouseleave="this.style.transform='scale(1)'"></div>`
+      const label = isWeekly ? fmtDate(date) : String(new Date(date+'T12:00:00').getDate())
+
+      return `<div style="display:flex;flex-direction:column;align-items:center;gap:3px">
+        <div title="${date}: ${title}" ${onclick}
+          style="width:${isWeekly?'44px':'18px'};height:${isWeekly?'44px':'18px'};border-radius:${isWeekly?'8px':'4px'};background:${color};
+          cursor:${clickable?'pointer':'default'};transition:transform 0.1s;display:flex;align-items:center;justify-content:center;
+          font-size:${isWeekly?'11px':'9px'};color:rgba(255,255,255,0.7);font-weight:500"
+          onmouseenter="if(${clickable})this.style.transform='scale(1.1)'"
+          onmouseleave="this.style.transform='scale(1)'">${isWeekly?label:''}</div>
+        ${isWeekly?`<div style="font-size:9px;color:var(--text3)">${new Date(date+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'})}</div>`:''}
+      </div>`
     }).join('')
 
     return `<div class="card card-pad" style="margin-bottom:12px">
-      <div style="font-weight:600;margin-bottom:10px">${esc(med.name)}</div>
-      <div style="display:flex;gap:3px;flex-wrap:wrap">${dots}</div>
-      <div style="display:flex;gap:16px;margin-top:8px;font-size:11px;color:var(--text3)">
+      <div style="font-weight:600;margin-bottom:10px">${esc(med.name)}
+        <span style="font-size:11px;color:var(--text3);font-weight:400;margin-left:8px">${isWeekly?'Last 4 '+med.reminder_day+'s':'Last 30 days'}</span>
+      </div>
+      <div style="display:flex;gap:${isWeekly?'10px':'3px'};flex-wrap:wrap;align-items:flex-end">${dots}</div>
+      <div style="display:flex;gap:16px;margin-top:10px;font-size:11px;color:var(--text3)">
         <span><span style="color:#59C9BC">■</span> Taken</span>
         <span><span style="color:#D4705A">■</span> Missed</span>
         <span><span style="color:#5c6070">■</span> Skipped</span>
+        <span><span style="color:#3d2535">■</span> No log</span>
       </div>
     </div>`
   }).join('')
