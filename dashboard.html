@@ -439,6 +439,7 @@ tbody tr.paid td{ opacity: 0.38; }
   <button class="tab"        data-tab="goals"     onclick="switchTab('goals',this)">Goals</button>
   <button class="tab"        data-tab="income"    onclick="switchTab('income',this)">Income</button>
   <button class="tab"        data-tab="spending"  onclick="switchTab('spending',this)">Spending</button>
+  <button class="tab"        data-tab="meds"      onclick="switchTab('meds',this)">💊 Meds</button>
   <button class="tab"        data-tab="paycheck"  onclick="switchTab('paycheck',this)">Paycheck</button>
 </div>
 
@@ -591,6 +592,21 @@ tbody tr.paid td{ opacity: 0.38; }
     </div>
   </div>
 
+  <!-- MEDS -->
+  <div id="tab-meds" style="display:none">
+    <div class="sec-hdr">
+      <div class="sec-title">Medications</div>
+      <button class="btn btn-ghost btn-sm" onclick="openAddMed()">+ Add Med</button>
+    </div>
+    <!-- Today's status -->
+    <div id="medsToday" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:14px;margin-bottom:28px"></div>
+    <!-- History -->
+    <div class="sec-hdr" style="margin-top:8px">
+      <div class="sec-title" style="font-size:14px">30-Day History</div>
+    </div>
+    <div id="medsHistory"></div>
+  </div>
+
   <div id="tab-paycheck" style="display:none">
     <div class="sec-hdr">
       <div class="sec-title">Paycheck Estimator</div>
@@ -667,6 +683,7 @@ const db = window.supabase.createClient(SUPA_URL, SUPA_KEY)
 // ═══════════════════════════════════════════════
 const S = {
   events:[], bills:[], categories:[], goals:[], staging:[], spendCats:[],
+  meds:[], medLogs:[],
   undo:null, undoTimer:null,
   calMonth:5, calYear:2026,
   openWeeks:new Set(), activeTab:'timeline',
@@ -725,16 +742,21 @@ async function dbUpd(table,id,ch){ const {error}=await db.from(table).update(ch)
 async function dbDel(table,id){ const {error}=await db.from(table).delete().eq('id',id); if(error)console.error(error) }
 
 async function loadAll(){
-  const [ev,bi,ca,go,st,sc]=await Promise.all([
+  const today = todayStr()
+  const thirtyDaysAgo = new Date(Date.now()-30*24*60*60*1000).toISOString().slice(0,10)
+  const [ev,bi,ca,go,st,sc,me,ml]=await Promise.all([
     db.from('events').select('*'),
     db.from('bills').select('*'),
     db.from('categories').select('*').order('position'),
     db.from('goals').select('*'),
     db.from('income_staging').select('*').order('expected_date'),
-    db.from('spend_categories').select('*').order('name')
+    db.from('spend_categories').select('*').order('name'),
+    db.from('medications').select('*'),
+    db.from('med_logs').select('*').gte('date', thirtyDaysAgo).order('date', {ascending:false})
   ])
   S.events=ev.data||[]; S.bills=bi.data||[]; S.categories=ca.data||[]
   S.goals=go.data||[]; S.staging=st.data||[]; S.spendCats=sc.data||[]
+  S.meds=me.data||[]; S.medLogs=ml.data||[]
 }
 
 async function insertEvent(ev){ const r=await dbIns('events',ev); if(r)S.events.push(r); updateBalDisplay(); return r }
@@ -1046,6 +1068,7 @@ function renderTab(n){
   else if(n==='goals') renderGoals()
   else if(n==='income') renderIncome()
   else if(n==='spending') renderSpending()
+  else if(n==='meds') renderMeds()
 }
 function renderCurrent(){ updateBalDisplay(); renderTab(S.activeTab) }
 
@@ -1417,6 +1440,209 @@ async function deleteSpendCat(id){
   await db.from('spend_categories').delete().eq('id',id)
   S.spendCats=S.spendCats.filter(c=>c.id!==id)
   openManageSpendCats()
+}
+
+// ═══════════════════════════════════════════════
+// MEDICATIONS
+// ═══════════════════════════════════════════════
+function renderMeds(){
+  const today = todayStr()
+  const dayNames = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday']
+  const todayDay = dayNames[new Date().getDay()]
+
+  // Today's status cards
+  document.getElementById('medsToday').innerHTML = S.meds.map(med => {
+    const todayLogs = S.medLogs.filter(l => l.med_id === med.id && l.date === today)
+    const takenLog = todayLogs.find(l => l.status === 'taken')
+    const skipLog = todayLogs.find(l => l.status === 'skip')
+    const missedLog = todayLogs.find(l => l.status === 'missed')
+
+    // For weekly meds, show if today is the day
+    const isWeeklyDay = med.frequency === 'weekly' && med.reminder_day?.toLowerCase() === todayDay
+    const isDaily = med.frequency === 'daily'
+    const isRelevantToday = isDaily || isWeeklyDay
+
+    let statusBadge, statusColor, actionBtns
+    if(takenLog){
+      const t = new Date(takenLog.taken_at)
+      const timeStr = t.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})
+      statusBadge = `✅ Taken at ${timeStr}`
+      statusColor = 'var(--teal,#59C9BC)'
+      actionBtns = `<button class="btn btn-ghost btn-sm" onclick="correctMedLog('${med.id}','${today}','${takenLog.id}')">Correct</button>`
+    } else if(skipLog){
+      statusBadge = '⏭️ Skipped today'
+      statusColor = 'var(--text3)'
+      actionBtns = `<button class="btn btn-ghost btn-sm" onclick="correctMedLog('${med.id}','${today}','${skipLog.id}')">Correct</button>`
+    } else if(missedLog){
+      statusBadge = '❌ Missed'
+      statusColor = 'var(--coral)'
+      actionBtns = `<button class="btn btn-success btn-sm" onclick="logMed('${med.id}','taken')">Log as Taken</button>`
+    } else if(!isRelevantToday){
+      statusBadge = med.frequency === 'weekly' ? `📅 Due ${med.reminder_day}s` : '—'
+      statusColor = 'var(--text3)'
+      actionBtns = ''
+    } else {
+      statusBadge = '⏳ Pending'
+      statusColor = 'var(--gold,#fbbf24)'
+      actionBtns = `
+        <button class="btn btn-primary btn-sm" onclick="logMed('${med.id}','taken')">Mark Taken</button>
+        <button class="btn btn-ghost btn-sm" onclick="logMed('${med.id}','skip')">Skip</button>`
+    }
+
+    const reminders = med.reminders || []
+    const scheduleText = med.frequency === 'weekly'
+      ? `Every ${med.reminder_day} · every 3hrs 8am–9pm`
+      : `Daily · every hour 7am–9pm`
+
+    return `<div class="card card-pad">
+      <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px">
+        <div>
+          <div style="font-size:15px;font-weight:700">${esc(med.name)}</div>
+          <div style="font-size:11px;color:var(--text3);margin-top:2px">${scheduleText}</div>
+        </div>
+        <div style="display:flex;gap:4px">
+          <button class="icon-btn" onclick="openEditMed('${med.id}')">✏️</button>
+        </div>
+      </div>
+      ${med.notes?`<div style="font-size:12px;color:var(--text3);margin-bottom:10px;font-style:italic">${esc(med.notes)}</div>`:''}
+      <div style="font-size:14px;font-weight:600;color:${statusColor};margin-bottom:12px">${statusBadge}</div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap">${actionBtns}</div>
+    </div>`
+  }).join('') || '<div class="empty-state">No medications yet</div>'
+
+  // 30-day history
+  const last30 = []
+  for(let i=29;i>=0;i--){
+    const d = new Date(Date.now()-i*24*60*60*1000)
+    last30.push(d.toISOString().slice(0,10))
+  }
+
+  document.getElementById('medsHistory').innerHTML = S.meds.map(med => {
+    const dots = last30.map(date => {
+      const log = S.medLogs.find(l => l.med_id === med.id && l.date === date)
+      const isWeekly = med.frequency === 'weekly'
+      const dayOfWeek = dayNames[new Date(date+'T12:00:00').getDay()]
+      const relevant = !isWeekly || dayOfWeek === med.reminder_day?.toLowerCase()
+
+      let color, title
+      if(log?.status === 'taken'){ color='#59C9BC'; title='Taken' }
+      else if(log?.status === 'skip'){ color='#5c6070'; title='Skipped' }
+      else if(log?.status === 'missed'){ color='#D4705A'; title='Missed' }
+      else if(!relevant){ color='#1e2236'; title='N/A' }
+      else if(date > todayStr()){ color='#1e2236'; title='Future' }
+      else{ color='#3d2535'; title='No log' }
+
+      return `<div title="${date}: ${title}" style="width:18px;height:18px;border-radius:4px;background:${color};flex-shrink:0;cursor:default"></div>`
+    }).join('')
+
+    return `<div class="card card-pad" style="margin-bottom:12px">
+      <div style="font-weight:600;margin-bottom:10px">${esc(med.name)}</div>
+      <div style="display:flex;gap:3px;flex-wrap:wrap">${dots}</div>
+      <div style="display:flex;gap:16px;margin-top:8px;font-size:11px;color:var(--text3)">
+        <span><span style="color:#59C9BC">■</span> Taken</span>
+        <span><span style="color:#D4705A">■</span> Missed</span>
+        <span><span style="color:#5c6070">■</span> Skipped</span>
+      </div>
+    </div>`
+  }).join('')
+}
+
+async function logMed(medId, status){
+  const today = todayStr()
+  const existing = S.medLogs.find(l => l.med_id === medId && l.date === today && ['taken','skip','missed'].includes(l.status))
+  if(existing){
+    await db.from('med_logs').update({status, taken_at: new Date().toISOString()}).eq('id', existing.id)
+    S.medLogs = S.medLogs.map(l => l.id === existing.id ? {...l, status, taken_at: new Date().toISOString()} : l)
+  } else {
+    const row = {id:uid(), med_id:medId, taken_at:new Date().toISOString(), status, date:today}
+    const r = await dbIns('med_logs', row)
+    if(r) S.medLogs.push(r)
+  }
+  renderMeds()
+}
+
+function correctMedLog(medId, date, logId){
+  openModal('Correct Medication Log', `
+    <div class="modal-note">Correcting log for <strong>${S.meds.find(m=>m.id===medId)?.name}</strong> on ${fmtDate(date)}</div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:8px">
+      <button class="btn btn-primary" onclick="updateMedLog('${logId}','taken')">✅ Mark Taken</button>
+      <button class="btn btn-ghost" onclick="updateMedLog('${logId}','skip')">⏭️ Mark Skipped</button>
+      <button class="btn btn-danger" onclick="updateMedLog('${logId}','missed')">❌ Mark Missed</button>
+    </div>
+    <div class="modal-actions"><button class="btn btn-ghost" onclick="closeModal()">Cancel</button></div>`)
+}
+
+async function updateMedLog(logId, status){
+  await db.from('med_logs').update({status, taken_at: new Date().toISOString()}).eq('id', logId)
+  S.medLogs = S.medLogs.map(l => l.id === logId ? {...l, status} : l)
+  closeModal(); renderMeds()
+}
+
+function openAddMed(){
+  openModal('Add Medication', medForm({name:'',frequency:'daily',reminder_day:'monday',notes:''},false))
+}
+function openEditMed(id){
+  const m = S.meds.find(m=>m.id===id)
+  if(m) openModal('Edit Medication', medForm(m, true))
+}
+function medForm(m, edit){
+  return `
+    <div class="form-group"><label class="form-label">Name</label><input type="text" id="medName" class="form-input" value="${esc(m.name||'')}"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Frequency</label>
+        <select id="medFreq" class="form-select" onchange="toggleMedDay()">
+          <option value="daily"${m.frequency==='daily'?' selected':''}>Daily</option>
+          <option value="weekly"${m.frequency==='weekly'?' selected':''}>Weekly</option>
+        </select>
+      </div>
+      <div class="form-group" id="medDayGroup" style="${m.frequency==='weekly'?'':'display:none'}">
+        <label class="form-label">Day</label>
+        <select id="medDay" class="form-select">
+          ${['monday','tuesday','wednesday','thursday','friday','saturday','sunday'].map(d=>`<option value="${d}"${m.reminder_day===d?' selected':''}>${d.charAt(0).toUpperCase()+d.slice(1)}</option>`).join('')}
+        </select>
+      </div>
+    </div>
+    <div class="form-group"><label class="form-label">Notes (optional)</label><input type="text" id="medNotes" class="form-input" value="${esc(m.notes||'')}"></div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="${edit?`saveEditMed('${m.id}')`:' saveAddMed()'}">${edit?'Save':'Add'}</button>
+    </div>`
+}
+function toggleMedDay(){
+  const freq = document.getElementById('medFreq').value
+  document.getElementById('medDayGroup').style.display = freq==='weekly' ? '' : 'none'
+}
+async function saveAddMed(){
+  const freq = document.getElementById('medFreq').value
+  const reminders = freq==='weekly'
+    ? [{"hour":8},{"hour":11},{"hour":14},{"hour":17},{"hour":20}]
+    : [{"hour":7},{"hour":8},{"hour":9},{"hour":10},{"hour":11},{"hour":12},{"hour":13},{"hour":14},{"hour":15},{"hour":16},{"hour":17},{"hour":18},{"hour":19},{"hour":20}]
+  const m = {
+    id: uid(),
+    name: document.getElementById('medName').value.trim(),
+    frequency: freq,
+    reminder_day: freq==='weekly' ? document.getElementById('medDay').value : null,
+    reminders,
+    notes: document.getElementById('medNotes').value.trim(),
+    active: true
+  }
+  if(!m.name) return alert('Enter a medication name')
+  const r = await dbIns('medications', m)
+  if(r) S.meds.push(r)
+  closeModal(); renderMeds()
+}
+async function saveEditMed(id){
+  const freq = document.getElementById('medFreq').value
+  const ch = {
+    name: document.getElementById('medName').value.trim(),
+    frequency: freq,
+    reminder_day: freq==='weekly' ? document.getElementById('medDay').value : null,
+    notes: document.getElementById('medNotes').value.trim()
+  }
+  await dbUpd('medications', id, ch)
+  const i = S.meds.findIndex(m=>m.id===id)
+  if(i>=0) S.meds[i] = {...S.meds[i], ...ch}
+  closeModal(); renderMeds()
 }
 
 function renderIncome(){
