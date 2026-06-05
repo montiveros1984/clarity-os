@@ -53,6 +53,8 @@ clarity-os/
 | `spend_categories` | Spending categories for transaction tagging |
 | `medications` | Medication schedules and reminder configs |
 | `med_logs` | Daily medication taken/skipped/missed log |
+| `loans` | Personal loans — borrowed or lent, with person/amount/direction |
+| `loan_payments` | Repayments (cash or in-kind) against a loan |
 
 ### Key columns to know:
 - `events.bill_id` — links event to a bill template or income source ('elp', bill id, etc.)
@@ -116,8 +118,8 @@ clarity-os/
 ## What's Still Pending
 
 ### Finance
-- [ ] Loans tracker (borrow/lend with in-kind payments, reminders)
-- [ ] Income tab fully wired (ELP source linked, recurring projected income)
+- [ ] Loans tracker — borrow/lend with in-kind payments (e.g. "Mom deducted a fan from what I owe her"), reminders when due. SQL tables ready: `loans`, `loan_payments`. Needs tab built.
+- [ ] Twilio webhook fully wired — need to set webhook URL in Twilio console to `https://myclarityos.netlify.app/api/med-reply`
 
 ### Core Modules
 - [ ] Todos & lists (grocery, shopping, general)
@@ -141,9 +143,9 @@ clarity-os/
 - [ ] Medication reminders → Twilio webhook fully wired (Twilio console setup pending)
 
 ### UX
-- [ ] Drag to reorder timeline (built, needs testing)
-- [ ] Better home dashboard widgets (more live data)
+- [ ] Better home dashboard widgets (more live data, more visual)
 - [ ] Push notifications (web push API)
+- [ ] Floral/artistic design pass (Maria wants Oregon wildflowers more prominent, glassmorphism cards over brain-flowers.jpg background — partially done)
 
 ---
 
@@ -190,6 +192,35 @@ SUPA_KEY        = [see Supabase project — anon public key]
 - Biweekly Fridays starting Jun 26, 2026
 - Update via: Income tab → Edit Amount OR Paycheck tab → Calculate → Apply
 - Apply button updates all future unchecked ELP events + income_source record
+
+---
+
+## Loans Tracker — Design Spec (pending build)
+
+### Use Case
+Maria borrows money from her mom or lends to her daughter. Repayments can be:
+- **Cash** — "paid back $100"
+- **In-kind** — "Mom said grab me a fan, deducted $45 from what I owe her"
+- Works both directions (Maria owes someone, or someone owes Maria)
+
+### Data Model (tables already created in Supabase)
+```
+loans: id, label, person, direction ('i_owe'|'they_owe'), original_amount, date, notes, reminder_date, paid_off
+loan_payments: id, loan_id, amount, date, payment_type ('cash'|'in_kind'), description
+```
+
+### UI (needs to be built as a new tab "Loans" in the sidebar)
+- Two sections: "I Owe" and "They Owe Me"
+- Each loan card shows: person, original amount, total paid, remaining balance, paid off status
+- Payment log per loan (expandable)
+- Add payment button — cash amount OR in-kind description + dollar value
+- Reminder date → Twilio SMS reminder when due
+- Paid off toggle
+- Undo on delete
+
+### Timeline Integration
+- When a loan is created, optionally create a `borrow` or `income` event in the finance timeline
+- When a repayment is logged, optionally create a `repay` or `purchase` event in the timeline
 
 ---
 
