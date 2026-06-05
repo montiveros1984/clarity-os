@@ -274,8 +274,12 @@ tbody tr.paid td{ opacity: 0.45; }
 tbody tr.going-neg td{ background: rgba(232,96,90,0.05); }
 tbody tr.going-neg td.running-neg{ color: var(--coral) !important; font-weight: 800 !important; }
 .neg-warning{ color: var(--coral); font-size: 13px; margin-left: 4px; }
-.collapsed-row td{ background: var(--bg2); font-style: italic; color: var(--text3); cursor: pointer; }
-.collapsed-row:hover td{ background: var(--bg); }
+.collapsed-row td{ background: rgba(252,212,226,0.10); font-style: italic; color: var(--text3); cursor: pointer; }
+.collapsed-row:hover td{ background: rgba(252,212,226,0.18); }
+.drag-handle{ cursor: grab; color: var(--text3); font-size: 16px; padding: 10px 6px !important; user-select: none; }
+.drag-handle:active{ cursor: grabbing; }
+tr.drag-over td{ border-top: 2px solid var(--pink) !important; }
+tr.dragging{ opacity: 0.4; }
 .mono{ font-variant-numeric: tabular-nums; }
 .pos{ color: var(--teal); }
 .neg{ color: var(--coral); }
@@ -830,6 +834,7 @@ tbody tr.going-neg td.running-neg{ color: var(--coral) !important; font-weight: 
       <table>
         <thead>
           <tr>
+            <th style="width:24px"></th>
             <th style="width:36px">✓</th>
             <th>Date</th>
             <th>Label</th>
@@ -884,14 +889,24 @@ tbody tr.going-neg td.running-neg{ color: var(--coral) !important; font-weight: 
 
   <!-- INCOME STAGING -->
   <div id="tab-income" style="display:none">
+
+    <!-- SECTION 1: Current Income Sources -->
     <div class="sec-hdr">
-      <div class="sec-title">Projected Income</div>
-      <button class="btn btn-primary btn-sm" onclick="openAddStaging()">+ Add Income</button>
+      <div class="sec-title">Current Income</div>
+      <button class="btn btn-primary btn-sm" onclick="openAddIncomeSource()">+ Add Source</button>
     </div>
-    <p style="font-size:13px;color:var(--text2);margin-bottom:18px;line-height:1.7">
-      Stage one-off expected income — bonuses, side work, freelance — before adding it to your cash flow.
+    <div id="incomeSourcesList" style="margin-bottom:28px"></div>
+
+    <!-- SECTION 2: Projected / Staged Income -->
+    <div class="sec-hdr" style="border-top:1px solid var(--border);padding-top:20px">
+      <div class="sec-title">Projected Income</div>
+      <button class="btn btn-ghost btn-sm" onclick="openAddStaging()">+ Add One-Time</button>
+    </div>
+    <p style="font-size:13px;color:var(--text2);margin-bottom:16px;line-height:1.7">
+      Stage bonuses, side work, or any non-recurring income. Toggle to include in your projection, then push to the timeline when confirmed.
     </p>
     <div id="stagingList"></div>
+
   </div>
 
   <!-- PAYCHECK -->
@@ -1042,7 +1057,7 @@ const db = window.supabase.createClient(SUPA_URL, SUPA_KEY)
 // ═══════════════════════════════════════════════
 const S = {
   events:[], bills:[], categories:[], goals:[], staging:[], spendCats:[],
-  meds:[], medLogs:[],
+  meds:[], medLogs:[], incomeSources:[], paycheckTargetSource:null,
   undo:null, undoTimer:null,
   calMonth:5, calYear:2026,
   openWeeks:new Set(), activeTab:'home', showChecked:false,
@@ -1081,8 +1096,14 @@ function typeOrder(type){
 }
 function sortedEvents(){
   return [...S.events].sort((a,b)=>{
+    // Use sort_order if both have it set
+    const aOrd = a.sort_order||0, bOrd = b.sort_order||0
+    if(aOrd&&bOrd) return aOrd-bOrd
+    if(aOrd) return -1
+    if(bOrd) return 1
+    // Fall back to date then type
     if(a.date!==b.date) return a.date.localeCompare(b.date)
-    return typeOrder(a.type) - typeOrder(b.type)
+    return typeOrder(a.type)-typeOrder(b.type)
   })
 }
 function eventsWithRunning(){
@@ -1106,7 +1127,7 @@ async function dbDel(table,id){ const {error}=await db.from(table).delete().eq('
 async function loadAll(){
   const today = todayStr()
   const thirtyDaysAgo = new Date(Date.now()-30*24*60*60*1000).toISOString().slice(0,10)
-  const [ev,bi,ca,go,st,sc,me,ml]=await Promise.all([
+  const [ev,bi,ca,go,st,sc,me,ml,is]=await Promise.all([
     db.from('events').select('*'),
     db.from('bills').select('*'),
     db.from('categories').select('*').order('position'),
@@ -1114,11 +1135,12 @@ async function loadAll(){
     db.from('income_staging').select('*').order('expected_date'),
     db.from('spend_categories').select('*').order('name'),
     db.from('medications').select('*'),
-    db.from('med_logs').select('*').gte('date', thirtyDaysAgo).order('date', {ascending:false})
+    db.from('med_logs').select('*').gte('date', thirtyDaysAgo).order('date', {ascending:false}),
+    db.from('income_sources').select('*')
   ])
   S.events=ev.data||[]; S.bills=bi.data||[]; S.categories=ca.data||[]
   S.goals=go.data||[]; S.staging=st.data||[]; S.spendCats=sc.data||[]
-  S.meds=me.data||[]; S.medLogs=ml.data||[]
+  S.meds=me.data||[]; S.medLogs=ml.data||[]; S.incomeSources=is.data||[]
 }
 
 async function insertEvent(ev){ const r=await dbIns('events',ev); if(r)S.events.push(r); updateBalDisplay(); return r }
@@ -1139,6 +1161,9 @@ async function updateGoal(id,ch){ await dbUpd('goals',id,ch); const i=S.goals.fi
 async function deleteGoal(id){ await dbDel('goals',id); S.goals=S.goals.filter(g=>g.id!==id) }
 
 async function insertStaging(s){ const r=await dbIns('income_staging',s); if(r)S.staging.push(r); return r }
+async function insertIncomeSource(src){ const r=await dbIns('income_sources',src); if(r)S.incomeSources.push(r); return r }
+async function updateIncomeSource(id,ch){ await dbUpd('income_sources',id,ch); const i=S.incomeSources.findIndex(s=>s.id===id); if(i>=0)S.incomeSources[i]={...S.incomeSources[i],...ch} }
+async function deleteIncomeSource(id){ await dbDel('income_sources',id); S.incomeSources=S.incomeSources.filter(s=>s.id!==id) }
 async function updateStaging(id,ch){ await dbUpd('income_staging',id,ch); const i=S.staging.findIndex(s=>s.id===id); if(i>=0)S.staging[i]={...S.staging[i],...ch} }
 async function deleteStaging(id){ await dbDel('income_staging',id); S.staging=S.staging.filter(s=>s.id!==id) }
 
@@ -1559,7 +1584,14 @@ function renderTimeline(){
 function buildRow(e, today){
   const isNegBal = e.running < 0
   const isPaid = e.checked || e.type==='start'
-  return `<tr class="${isPaid?'paid':''} ${isNegBal&&!isPaid?'going-neg':''}" data-date="${e.date}">
+  return `<tr class="${isPaid?'paid':''} ${isNegBal&&!isPaid?'going-neg':''}" data-id="${e.id}" data-date="${e.date}"
+    draggable="true"
+    ondragstart="tlDragStart(event,'${e.id}')"
+    ondragover="tlDragOver(event)"
+    ondragleave="tlDragLeave(event)"
+    ondrop="tlDrop(event,'${e.id}')"
+    ondragend="tlDragEnd(event)">
+    <td class="drag-handle" title="Drag to reorder">⠿</td>
     <td>${e.type!=='start'?`<input type="checkbox" ${e.checked?'checked':''} onchange="toggleCheck('${e.id}').then(renderTimeline)">`:''}</td>
     <td style="font-size:12px;white-space:nowrap;color:var(--text2)">${fmtDate(e.date)}</td>
     <td style="font-weight:500">${esc(e.label)}</td>
@@ -2188,31 +2220,174 @@ async function saveEditMed(id){
   closeModal(); renderMeds()
 }
 
+const FREQ_LABELS = {
+  'biweekly':'Biweekly', 'weekly':'Weekly', 'monthly':'Monthly',
+  'semimonthly':'Semi-monthly (2x/mo)', 'once':'One-time'
+}
+
 function renderIncome(){
-  document.getElementById('stagingList').innerHTML=S.staging.map(s=>`
+  // ── CURRENT INCOME SOURCES ──
+  const srcEl = document.getElementById('incomeSourcesList')
+  if(srcEl){
+    srcEl.innerHTML = S.incomeSources.length ? S.incomeSources.map(src=>{
+      const nextEvt = S.events.filter(e=>e.bill_id===src.id&&!e.checked&&e.date>=todayStr()).sort((a,b)=>a.date.localeCompare(b.date))[0]
+      const totalFuture = S.events.filter(e=>e.bill_id===src.id&&!e.checked&&e.date>=todayStr()).reduce((s,e)=>s+(+e.amount),0)
+      return `<div class="card card-pad" style="margin-bottom:12px;border-left:4px solid var(--teal)">
+        <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px;flex-wrap:wrap">
+          <div style="flex:1">
+            <div style="font-size:16px;font-weight:700;margin-bottom:4px">${esc(src.label)}</div>
+            <div style="display:flex;gap:12px;flex-wrap:wrap;font-size:12px;color:var(--text2)">
+              <span>📅 ${FREQ_LABELS[src.frequency]||src.frequency}</span>
+              <span>🗓 Started ${fmtDate(src.start_date)}</span>
+              ${nextEvt?`<span>⏭ Next: ${fmtDate(nextEvt.date)}</span>`:''}
+              ${totalFuture?`<span style="color:var(--teal);font-weight:600">+${fmtAbs(totalFuture)} projected</span>`:''}
+            </div>
+            ${src.notes?`<div style="font-size:12px;color:var(--text3);margin-top:4px;font-style:italic">${esc(src.notes)}</div>`:''}
+          </div>
+          <div style="text-align:right;flex-shrink:0">
+            <div style="font-size:28px;font-weight:800;color:var(--teal);letter-spacing:-0.02em">${fmt(src.amount)}</div>
+            <div style="font-size:11px;color:var(--text3)">per ${src.frequency==='semimonthly'?'period':src.frequency.replace('ly','')}</div>
+          </div>
+        </div>
+        <div style="display:flex;gap:8px;margin-top:14px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm" onclick="openEditIncomeSource('${src.id}')">✏️ Edit Amount</button>
+          <button class="btn btn-ghost btn-sm" onclick="openPaycheckForSource('${src.id}')">🧮 Recalculate</button>
+          ${src.id!=='elp'?`<button class="btn btn-danger btn-sm" onclick="confirmDeleteIncomeSource('${src.id}')">🗑️ Remove</button>`:''}
+        </div>
+      </div>`
+    }).join('') : '<div class="empty-state">No current income sources — add one above</div>'
+  }
+
+  // ── PROJECTED / STAGED ──
+  document.getElementById('stagingList').innerHTML = S.staging.map(s=>`
     <div class="staging-item${s.added?' added-item':''}">
       <div class="staging-info">
         <div class="staging-label">${esc(s.label)}</div>
-        <div class="staging-meta">${fmtDate(s.expected_date)}${s.note?' · '+esc(s.note):''}</div>
+        <div class="staging-meta">
+          ${s.is_recurring?`🔄 ${FREQ_LABELS[s.frequency]||s.frequency} from ${fmtDate(s.expected_date)}`:fmtDate(s.expected_date)}
+          ${s.note?' · '+esc(s.note):''}
+        </div>
       </div>
       <div class="staging-amt">${fmt(s.amount)}</div>
       <div class="staging-right">
         ${!s.added
-          ?`<button class="btn btn-teal btn-sm" onclick="pushToFlow('${s.id}')">Add to Timeline</button>`
+          ?`<button class="btn btn-teal btn-sm" onclick="pushToFlow('${s.id}')">→ Push to Timeline</button>`
           :'<span style="font-size:11px;color:var(--teal);font-weight:600">✓ In timeline</span>'}
         <div style="display:flex;gap:4px">
           <button class="icon-btn" onclick="openEditStaging('${s.id}')">✏️</button>
           <button class="icon-btn del" onclick="deleteStaging('${s.id}').then(renderIncome)">🗑️</button>
         </div>
       </div>
-    </div>`).join('')||'<div class="empty-state">No projected income yet — add a bonus or side gig above</div>'
+    </div>`).join('')||'<div class="empty-state">No projected income yet</div>'
 }
+
 async function pushToFlow(id){
   const s=S.staging.find(x=>x.id===id); if(!s) return
-  await insertEvent({id:uid(),date:s.expected_date,label:s.label,amount:s.amount,type:'income',bill_id:null,checked:false})
+  if(s.is_recurring){
+    // Generate recurring events like a bill
+    const freqDays = {weekly:7,biweekly:14,monthly:null,semimonthly:null,once:0}
+    let d = new Date(s.expected_date+'T12:00:00')
+    const end = new Date('2026-12-31T12:00:00')
+    const days = freqDays[s.frequency]
+    while(d<=end){
+      await insertEvent({id:uid(),date:d.toISOString().slice(0,10),label:s.label,amount:s.amount,type:'income',bill_id:s.id,checked:false})
+      if(!days) break
+      d.setDate(d.getDate()+days)
+    }
+  } else {
+    await insertEvent({id:uid(),date:s.expected_date,label:s.label,amount:s.amount,type:'income',bill_id:null,checked:false})
+  }
   await updateStaging(id,{added:true})
   renderIncome(); updateBalDisplay()
 }
+
+// ── INCOME SOURCE MODALS ──
+function openAddIncomeSource(){
+  openModal('Add Income Source', incomeSourceForm({label:'',amount:'',frequency:'biweekly',start_date:todayStr(),notes:''},false))
+}
+function openEditIncomeSource(id){
+  const src=S.incomeSources.find(s=>s.id===id); if(!src) return
+  openModal('Edit Income Source', incomeSourceForm(src,true))
+}
+function incomeSourceForm(src,edit){
+  const freqOpts = ['biweekly','weekly','monthly','semimonthly'].map(f=>
+    `<option value="${f}"${(src.frequency||'biweekly')===f?' selected':''}>${FREQ_LABELS[f]}</option>`).join('')
+  return `
+    <div class="form-group"><label class="form-label">Label</label><input type="text" id="isLabel" class="form-input" value="${esc(src.label||'')}"></div>
+    <div class="form-row">
+      <div class="form-group"><label class="form-label">Take-home Amount ($)</label><input type="number" id="isAmount" class="form-input" step="0.01" value="${src.amount||''}"></div>
+      <div class="form-group"><label class="form-label">Frequency</label><select id="isFreq" class="form-select">${freqOpts}</select></div>
+    </div>
+    <div class="form-group"><label class="form-label">Start Date</label><input type="date" id="isStart" class="form-input" value="${src.start_date||''}"></div>
+    <div class="form-group"><label class="form-label">Notes (optional)</label><input type="text" id="isNotes" class="form-input" value="${esc(src.notes||'')}"></div>
+    ${edit&&src.id?`
+    <div class="modal-note" style="margin-top:4px">
+      Saving will update the amount on <strong>all future unchecked payments</strong> from this source.
+    </div>`:''}
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-primary" onclick="${edit?`saveEditIncomeSource('${src.id}')`:' saveAddIncomeSource()'}">${edit?'Save & Apply':'Add Source'}</button>
+    </div>`
+}
+async function saveAddIncomeSource(){
+  const src={
+    id:uid(), label:document.getElementById('isLabel').value.trim(),
+    amount:parseFloat(document.getElementById('isAmount').value),
+    frequency:document.getElementById('isFreq').value,
+    start_date:document.getElementById('isStart').value,
+    notes:document.getElementById('isNotes').value.trim(),
+    active:true
+  }
+  if(!src.label||isNaN(src.amount)) return alert('Fill all fields')
+  await insertIncomeSource(src)
+  // Generate events through end of year
+  const elpEvs = genELPEvents(src.start_date, src.amount, '2026-12-31')
+    .map(e=>({...e, bill_id:src.id}))
+  for(let i=0;i<elpEvs.length;i+=25) await db.from('events').insert(elpEvs.slice(i,i+25))
+  await loadAll()
+  closeModal(); renderIncome(); updateBalDisplay()
+}
+async function saveEditIncomeSource(id){
+  const amount=parseFloat(document.getElementById('isAmount').value)
+  const ch={
+    label:document.getElementById('isLabel').value.trim(),
+    amount, frequency:document.getElementById('isFreq').value,
+    start_date:document.getElementById('isStart').value,
+    notes:document.getElementById('isNotes').value.trim()
+  }
+  if(!ch.label||isNaN(amount)) return alert('Fill all fields')
+  await updateIncomeSource(id,ch)
+  // Apply new amount to all future unchecked events
+  const t=todayStr()
+  const toUpdate=S.events.filter(e=>e.bill_id===id&&!e.checked&&e.date>=t)
+  for(const ev of toUpdate) await updateEvent(ev.id,{amount,label:ch.label})
+  closeModal(); renderIncome(); updateBalDisplay()
+}
+function confirmDeleteIncomeSource(id){
+  const src=S.incomeSources.find(s=>s.id===id); if(!src) return
+  openModal('Remove Income Source',`
+    <div class="modal-note">Remove <strong>${esc(src.label)}</strong>? All future unchecked events from this source will be deleted.</div>
+    <div class="modal-actions">
+      <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
+      <button class="btn btn-danger" onclick="doDeleteIncomeSource('${id}')">Remove</button>
+    </div>`)
+}
+async function doDeleteIncomeSource(id){
+  const t=todayStr()
+  for(const ev of S.events.filter(e=>e.bill_id===id&&!e.checked&&e.date>=t)) await deleteEvent(ev.id)
+  await deleteIncomeSource(id)
+  closeModal(); renderIncome(); updateBalDisplay()
+}
+
+// Open paycheck calculator pre-linked to an income source
+function openPaycheckForSource(id){
+  const src=S.incomeSources.find(s=>s.id===id)
+  // Switch to paycheck tab
+  switchTab('paycheck', document.querySelector('[data-tab="paycheck"]'))
+  // Set a callback so Apply button updates this source
+  S.paycheckTargetSource = id
+}
+
 
 // ═══════════════════════════════════════════════
 // PAYCHECK ESTIMATOR
@@ -2260,10 +2435,17 @@ function calcPaycheck(){
 }
 async function applyToELP(amount){
   const t=todayStr()
-  const targets=S.events.filter(e=>e.bill_id==='elp'&&!e.checked&&e.date>=t)
+  // Determine target source — either the linked source or default 'elp'
+  const sourceId = S.paycheckTargetSource || 'elp'
+  const targets=S.events.filter(e=>e.bill_id===sourceId&&!e.checked&&e.date>=t)
   for(const ev of targets) await updateEvent(ev.id,{amount:+amount})
-  alert(`Updated ${targets.length} ELP check(s) to ${fmt(amount)}`)
+  // Also update the income source record
+  const src = S.incomeSources.find(s=>s.id===sourceId)
+  if(src) await updateIncomeSource(sourceId,{amount:+amount})
+  S.paycheckTargetSource = null
+  alert(`Updated ${targets.length} future paychecks to ${fmt(amount)}`)
   updateBalDisplay()
+  renderIncome()
 }
 function resetPaycheck(){
   document.getElementById('pcRate').value='42'
@@ -2543,25 +2725,48 @@ async function doDeleteGoal(id){
 function openAddStaging(){ openModal('Add Projected Income',stagingForm({label:'',amount:'',expected_date:todayStr(),note:''},false)) }
 function openEditStaging(id){ const s=S.staging.find(s=>s.id===id); if(s) openModal('Edit Income',stagingForm(s,true)) }
 function stagingForm(s,edit){
+  const isRec = s.is_recurring||false
+  const freqOpts=['once','weekly','biweekly','monthly','semimonthly'].map(f=>
+    `<option value="${f}"${(s.frequency||'once')===f?' selected':''}>${FREQ_LABELS[f]}</option>`).join('')
   return `
-    <div class="form-group"><label class="form-label">Label</label><input type="text" id="stLabel" class="form-input" value="${esc(s.label||'')}"></div>
+    <div class="form-group"><label class="form-label">Label / Description</label><input type="text" id="stLabel" class="form-input" value="${esc(s.label||'')}"></div>
     <div class="form-row">
       <div class="form-group"><label class="form-label">Amount ($)</label><input type="number" id="stAmt" class="form-input" step="0.01" value="${s.amount||''}"></div>
-      <div class="form-group"><label class="form-label">Expected Date</label><input type="date" id="stDate" class="form-input" value="${s.expected_date||''}"></div>
+      <div class="form-group"><label class="form-label">Frequency</label><select id="stFreq" class="form-select" onchange="toggleStagingDate()">${freqOpts}</select></div>
     </div>
+    <div class="form-group"><label class="form-label" id="stDateLabel">${isRec?'Start Date':'Expected Date'}</label><input type="date" id="stDate" class="form-input" value="${s.expected_date||''}"></div>
     <div class="form-group"><label class="form-label">Note (optional)</label><input type="text" id="stNote" class="form-input" value="${esc(s.note||'')}"></div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
       <button class="btn btn-primary" onclick="${edit?`saveEditStaging('${s.id}')`:' saveAddStaging()'}">${edit?'Save Changes':'Add'}</button>
     </div>`
 }
+function toggleStagingDate(){
+  const freq=document.getElementById('stFreq').value
+  const lbl=document.getElementById('stDateLabel')
+  if(lbl) lbl.textContent = freq==='once'?'Expected Date':'Start Date'
+}
 async function saveAddStaging(){
-  const s={id:uid(),label:document.getElementById('stLabel').value.trim(),amount:parseFloat(document.getElementById('stAmt').value),expected_date:document.getElementById('stDate').value,note:document.getElementById('stNote').value.trim(),added:false}
+  const freq=document.getElementById('stFreq').value
+  const s={
+    id:uid(), label:document.getElementById('stLabel').value.trim(),
+    amount:parseFloat(document.getElementById('stAmt').value),
+    expected_date:document.getElementById('stDate').value,
+    note:document.getElementById('stNote').value.trim(),
+    frequency:freq, is_recurring:freq!=='once', added:false
+  }
   if(!s.label||isNaN(s.amount)||!s.expected_date) return alert('Fill required fields')
   await insertStaging(s); closeModal(); renderIncome()
 }
 async function saveEditStaging(id){
-  const ch={label:document.getElementById('stLabel').value.trim(),amount:parseFloat(document.getElementById('stAmt').value),expected_date:document.getElementById('stDate').value,note:document.getElementById('stNote').value.trim()}
+  const freq=document.getElementById('stFreq').value
+  const ch={
+    label:document.getElementById('stLabel').value.trim(),
+    amount:parseFloat(document.getElementById('stAmt').value),
+    expected_date:document.getElementById('stDate').value,
+    note:document.getElementById('stNote').value.trim(),
+    frequency:freq, is_recurring:freq!=='once'
+  }
   await updateStaging(id,ch); closeModal(); renderIncome()
 }
 
@@ -2779,6 +2984,54 @@ document.addEventListener('keydown',e=>{
   else if(e.key==='Backspace') pinBackspace()
 })
 pinInit()
+
+// ═══════════════════════════════════════════════
+// TIMELINE DRAG TO REORDER
+// ═══════════════════════════════════════════════
+let tlDraggingId = null
+
+function tlDragStart(e, id){
+  tlDraggingId = id
+  e.dataTransfer.effectAllowed = 'move'
+  e.dataTransfer.setData('text/plain', id)
+  setTimeout(()=>{ const r=document.querySelector(`[data-id="${id}"]`); if(r) r.classList.add('dragging') },0)
+}
+function tlDragOver(e){
+  e.preventDefault()
+  e.dataTransfer.dropEffect = 'move'
+  const row = e.target.closest('tr[data-id]')
+  if(row && row.dataset.id !== tlDraggingId){
+    document.querySelectorAll('tr.drag-over').forEach(r=>r.classList.remove('drag-over'))
+    row.classList.add('drag-over')
+  }
+}
+function tlDragLeave(e){
+  const row = e.target.closest('tr[data-id]')
+  if(row) row.classList.remove('drag-over')
+}
+function tlDragEnd(e){
+  document.querySelectorAll('tr.dragging,tr.drag-over').forEach(r=>{
+    r.classList.remove('dragging','drag-over')
+  })
+}
+async function tlDrop(e, targetId){
+  e.preventDefault()
+  tlDragEnd(e)
+  if(!tlDraggingId || tlDraggingId === targetId) return
+  const rows = [...document.querySelectorAll('#timelineBody tr[data-id]')]
+  const orderedIds = rows.map(r=>r.dataset.id)
+  const fromIdx = orderedIds.indexOf(tlDraggingId)
+  const toIdx   = orderedIds.indexOf(targetId)
+  if(fromIdx===-1||toIdx===-1) return
+  orderedIds.splice(fromIdx,1)
+  orderedIds.splice(toIdx,0,tlDraggingId)
+  for(let i=0;i<orderedIds.length;i++){
+    const ev=S.events.find(e=>e.id===orderedIds[i])
+    if(ev&&ev.sort_order!==i+1) await updateEvent(orderedIds[i],{sort_order:i+1})
+  }
+  renderTimeline()
+  tlDraggingId = null
+}
 
 async function init(){
   await loadAll()
