@@ -177,6 +177,11 @@ td{ padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: 
 tbody tr:last-child td{ border-bottom: none; }
 tbody tr:hover td{ background: rgba(255,255,255,0.025); }
 tbody tr.paid td{ opacity: 0.38; }
+tbody tr.going-neg td{ background: rgba(212,112,90,0.08); }
+tbody tr.going-neg td.running-neg{ color: var(--coral) !important; font-weight: 800 !important; }
+.neg-warning{ color: var(--coral); font-size: 13px; margin-left: 4px; }
+.collapsed-row td{ background: var(--bg2); font-style: italic; color: var(--text3); cursor: pointer; }
+.collapsed-row:hover td{ background: var(--card2); }
 .mono{ font-variant-numeric: tabular-nums; }
 .pos{ color: var(--pink); }
 .neg{ color: var(--coral); }
@@ -450,7 +455,15 @@ tbody tr.paid td{ opacity: 0.38; }
   <div id="tab-timeline">
     <div class="sec-hdr">
       <div class="sec-title">Transaction Ledger</div>
-      <div class="sec-actions">
+      <div class="sec-actions" style="flex-wrap:wrap">
+        <!-- Balance on date -->
+        <div style="display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--border2);border-radius:var(--r-sm);padding:4px 10px">
+          <span style="font-size:12px;color:var(--text3)">Balance on</span>
+          <input type="date" id="balOnDate" class="form-input" style="border:none;background:transparent;padding:0;font-size:12px;width:130px" onchange="showBalOnDate()">
+          <span id="balOnDateVal" style="font-size:13px;font-weight:700;min-width:80px"></span>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="jumpToToday()">📍 Today</button>
+        <button class="btn btn-ghost btn-sm" id="toggleCheckedBtn" onclick="toggleChecked()">Hide Paid</button>
         <button class="btn btn-ghost btn-sm" onclick="openExtendYear()">+ Extend Year</button>
         <button class="btn btn-primary btn-sm" onclick="openAddEvent()">+ Add Entry</button>
       </div>
@@ -686,7 +699,7 @@ const S = {
   meds:[], medLogs:[],
   undo:null, undoTimer:null,
   calMonth:5, calYear:2026,
-  openWeeks:new Set(), activeTab:'timeline',
+  openWeeks:new Set(), activeTab:'timeline', showChecked:false,
   chartDrill: null, chartInstance: null
 }
 
@@ -715,12 +728,15 @@ function amtCls(n){ return +n>=0?'pos':'neg' }
 // ═══════════════════════════════════════════════
 // BALANCE
 // ═══════════════════════════════════════════════
+function typeOrder(type){
+  if(type==='start') return 0
+  if(type==='income'||type==='borrow') return 1
+  return 2
+}
 function sortedEvents(){
   return [...S.events].sort((a,b)=>{
     if(a.date!==b.date) return a.date.localeCompare(b.date)
-    if(a.type==='start') return -1
-    if(b.type==='start') return 1
-    return 0
+    return typeOrder(a.type) - typeOrder(b.type)
   })
 }
 function eventsWithRunning(){
@@ -1085,6 +1101,38 @@ function clearFilters(){
   renderTimeline()
 }
 
+function toggleChecked(){
+  S.showChecked = !S.showChecked
+  document.getElementById('toggleCheckedBtn').textContent = S.showChecked ? 'Hide Paid' : 'Show Paid'
+  renderTimeline()
+}
+
+function jumpToToday(){
+  S.showChecked = false
+  document.getElementById('toggleCheckedBtn').textContent = 'Show Paid'
+  // Clear filters
+  document.getElementById('fMonth').value = ''
+  document.getElementById('fType').value = ''
+  document.getElementById('fPaid').value = ''
+  document.getElementById('fLabel').value = ''
+  renderTimeline()
+  setTimeout(()=>{
+    const todayRow = document.getElementById('today-row')
+    if(todayRow) todayRow.scrollIntoView({behavior:'smooth', block:'center'})
+  }, 100)
+}
+
+function showBalOnDate(){
+  const d = document.getElementById('balOnDate').value
+  if(!d) return
+  const evs = eventsWithRunning()
+  const last = [...evs].filter(e=>e.date<=d).pop()
+  const val = last ? last.running : 0
+  const el = document.getElementById('balOnDateVal')
+  el.textContent = fmt(val)
+  el.style.color = val < 0 ? 'var(--coral)' : '#59C9BC'
+}
+
 function renderTimeline(){
   const mo     = document.getElementById('fMonth').value
   const type   = document.getElementById('fType').value
@@ -1092,12 +1140,14 @@ function renderTimeline(){
   const label  = document.getElementById('fLabel').value.trim().toLowerCase()
   const amtMin = parseFloat(document.getElementById('fAmtMin').value)
   const amtMax = parseFloat(document.getElementById('fAmtMax').value)
-  let evs=eventsWithRunning()
-  if(mo)            evs=evs.filter(e=>e.date.startsWith('2026-'+mo))
-  if(type)          evs=evs.filter(e=>e.type===type)
-  if(paid==='paid')   evs=evs.filter(e=>e.checked||e.type==='start')
-  if(paid==='unpaid') evs=evs.filter(e=>!e.checked&&e.type!=='start')
-  if(label)         evs=evs.filter(e=>e.label.toLowerCase().includes(label))
+  const today  = todayStr()
+  let evs = eventsWithRunning()
+
+  if(mo)             evs=evs.filter(e=>e.date.startsWith('2026-'+mo))
+  if(type)           evs=evs.filter(e=>e.type===type)
+  if(paid==='paid')  evs=evs.filter(e=>e.checked||e.type==='start')
+  if(paid==='unpaid')evs=evs.filter(e=>!e.checked&&e.type!=='start')
+  if(label)          evs=evs.filter(e=>e.label.toLowerCase().includes(label))
   if(!isNaN(amtMin)) evs=evs.filter(e=>Math.abs(e.amount)>=amtMin)
   if(!isNaN(amtMax)) evs=evs.filter(e=>Math.abs(e.amount)<=amtMax)
 
@@ -1105,19 +1155,68 @@ function renderTimeline(){
     document.getElementById('timelineBody').innerHTML='<tr><td colspan="7" class="empty-state">No entries match filters</td></tr>'
     return
   }
-  document.getElementById('timelineBody').innerHTML=evs.map(e=>`
-    <tr class="${e.checked||e.type==='start'?'paid':''}">
-      <td>${e.type!=='start'?`<input type="checkbox" ${e.checked?'checked':''} onchange="toggleCheck('${e.id}').then(renderTimeline)">`:''}</td>
-      <td style="font-size:12px;white-space:nowrap;color:var(--text2)">${fmtDate(e.date)}</td>
-      <td style="font-weight:500">${esc(e.label)}</td>
-      <td><span class="badge badge-${e.type}">${e.type}</span>${e.tx_category?` <span style="font-size:10px;color:var(--text3)">${esc(e.tx_category)}</span>`:''}</td>
-      <td class="mono ${amtCls(e.amount)}" style="text-align:right;font-weight:600">${fmt(e.amount)}</td>
-      <td class="mono ${amtCls(e.running)}" style="text-align:right">${fmt(e.running)}</td>
-      <td>
-        <button class="icon-btn" onclick="openEditEvent('${e.id}')" title="Edit">✏️</button>
-        <button class="icon-btn del" onclick="confirmDeleteEvent('${e.id}')" title="Delete">🗑️</button>
-      </td>
-    </tr>`).join('')
+
+  // Separate checked vs unchecked
+  const checked   = evs.filter(e=>e.checked||e.type==='start')
+  const unchecked = evs.filter(e=>!e.checked&&e.type!=='start')
+
+  // Find today's position marker
+  let rows = ''
+
+  // Collapsed paid section
+  if(checked.length){
+    if(S.showChecked){
+      rows += checked.map(e=>buildRow(e, today)).join('')
+      rows += `<tr class="collapsed-row" onclick="toggleChecked()">
+        <td colspan="7" style="text-align:center;padding:8px">▲ Hide ${checked.length} paid/cleared items</td>
+      </tr>`
+    } else {
+      const totalIn  = checked.filter(e=>e.amount>0&&e.type!=='start').reduce((s,e)=>s+(+e.amount),0)
+      const totalOut = checked.filter(e=>e.amount<0).reduce((s,e)=>s+(+e.amount),0)
+      rows += `<tr class="collapsed-row" onclick="toggleChecked()">
+        <td colspan="7" style="padding:10px 14px">
+          <span style="margin-right:12px">▼ ${checked.length} paid/cleared items</span>
+          <span style="color:#59C9BC;margin-right:8px">+${fmtAbs(totalIn)} in</span>
+          <span style="color:var(--coral)">${fmt(totalOut)} out</span>
+        </td>
+      </tr>`
+    }
+  }
+
+  // Today marker
+  const hasToday = unchecked.some(e=>e.date===today)
+  const firstUpcoming = unchecked.find(e=>e.date>=today)
+
+  rows += unchecked.map((e,i)=>{
+    let marker = ''
+    if(e.date===today&&i===unchecked.findIndex(x=>x.date===today)){
+      marker = `<tr id="today-row"><td colspan="7" style="padding:4px 14px;background:rgba(232,180,188,0.08);border-left:3px solid #E8B4BC;font-size:11px;color:#E8B4BC;font-weight:600;letter-spacing:0.05em">TODAY — ${today}</td></tr>`
+    } else if(!hasToday&&firstUpcoming?.id===e.id){
+      marker = `<tr id="today-row"><td colspan="7" style="padding:4px 14px;background:rgba(232,180,188,0.08);border-left:3px solid #E8B4BC;font-size:11px;color:#E8B4BC;font-weight:600;letter-spacing:0.05em">UPCOMING</td></tr>`
+    }
+    return marker + buildRow(e, today)
+  }).join('')
+
+  document.getElementById('timelineBody').innerHTML = rows
+}
+
+function buildRow(e, today){
+  const isNegBal = e.running < 0
+  const isPaid = e.checked || e.type==='start'
+  return `<tr class="${isPaid?'paid':''} ${isNegBal&&!isPaid?'going-neg':''}" data-date="${e.date}">
+    <td>${e.type!=='start'?`<input type="checkbox" ${e.checked?'checked':''} onchange="toggleCheck('${e.id}').then(renderTimeline)">`:''}</td>
+    <td style="font-size:12px;white-space:nowrap;color:var(--text2)">${fmtDate(e.date)}</td>
+    <td style="font-weight:500">${esc(e.label)}</td>
+    <td><span class="badge badge-${e.type}">${e.type}</span>${e.tx_category?` <span style="font-size:10px;color:var(--text3)">${esc(e.tx_category)}</span>`:''}</td>
+    <td class="mono ${amtCls(e.amount)}" style="text-align:right;font-weight:600">${fmt(e.amount)}</td>
+    <td class="mono ${isNegBal?'running-neg':amtCls(e.running)}" style="text-align:right;font-weight:${isNegBal?'800':'400'}">
+      ${isNegBal?'⚠️ ':''}${fmt(e.running)}
+    </td>
+    <td>
+      <button class="icon-btn" onclick="openEditEvent('${e.id}')" title="Edit">✏️</button>
+      <button class="icon-btn del" onclick="confirmDeleteEvent('${e.id}')" title="Delete">🗑️</button>
+    </td>
+  </tr>`
 }
 
 // ═══════════════════════════════════════════════
