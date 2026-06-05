@@ -9,40 +9,51 @@
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  /* Dark sunset palette */
-  --pink:      #E8B4BC;
-  --pink-bg:   rgba(232,180,188,0.12);
-  --mauve:     #A07898;
-  --mauve-bg:  rgba(160,120,152,0.14);
-  --rose:      #7A3858;
-  --rose-bg:   rgba(122,56,88,0.18);
-  --coral:     #D4705A;
-  --coral-bg:  rgba(212,112,90,0.15);
-  --slate:     #506478;
-  --slate-bg:  rgba(80,100,120,0.18);
-
-  /* Layout — dark */
-  --bg:        #12151F;
-  --bg2:       #181C2A;
-  --card:      #1E2236;
-  --card2:     #242840;
-  --border:    rgba(255,255,255,0.07);
-  --border2:   rgba(255,255,255,0.13);
+  /* Light pink palette */
+  --bg:        #FDF0F5;
+  --bg2:       #F8E8F2;
+  --card:      #FFFFFF;
+  --border:    #F0E0E8;
+  --border2:   #E0C8D4;
 
   /* Text */
-  --text:      #EDE8F0;
-  --text2:     #9A90A8;
-  --text3:     #5C5470;
+  --text:      #2D1F2D;
+  --text2:     #7A6070;
+  --text3:     #B09AA8;
 
-  /* Functional aliases */
-  --pos:       var(--pink);
+  /* Section accent colors */
+  --coral:     #E8605A;
+  --coral-bg:  #FEF0EF;
+  --pink:      #D4568A;
+  --pink-bg:   #FCE8F2;
+  --lavender:  #9B7EC8;
+  --lav-bg:    #F2EEFF;
+  --gold:      #E8A030;
+  --gold-bg:   #FEF6E8;
+  --teal:      #3ABCAA;
+  --teal-bg:   #E8F8F6;
+  --blue:      #5A8ED4;
+  --blue-bg:   #EEF4FE;
+  --purple:    #8B5CC8;
+  --purple-bg: #F4EEFF;
+
+  /* Legacy aliases for existing JS/CSS that uses mauve/rose/slate */
+  --mauve:     #D4568A;
+  --mauve-bg:  #FCE8F2;
+  --rose:      #C0407A;
+  --rose-bg:   #FCDCE8;
+  --slate:     #3ABCAA;
+  --slate-bg:  #E8F8F6;
+
+  /* Functional */
+  --pos:       var(--teal);
   --neg:       var(--coral);
-  --accent:    var(--mauve);
+  --accent:    var(--pink);
 
-  --shadow:    0 1px 4px rgba(0,0,0,0.4), 0 1px 2px rgba(0,0,0,0.3);
-  --shadow-md: 0 4px 16px rgba(0,0,0,0.5), 0 2px 6px rgba(0,0,0,0.3);
-  --r:         10px;
-  --r-sm:      6px;
+  --shadow:    0 2px 12px rgba(180,120,150,0.10), 0 1px 3px rgba(180,120,150,0.06);
+  --shadow-md: 0 6px 24px rgba(180,120,150,0.14), 0 2px 8px rgba(180,120,150,0.08);
+  --r:         16px;
+  --r-sm:      10px;
 }
 
 body{
@@ -54,80 +65,114 @@ body{
   line-height: 1.5;
 }
 
-/* ─── HEADER — sunset sky ─────────────────────── */
-.header{
-  background: linear-gradient(180deg,
-    #3d1f38 0%, #2e1a30 18%, #1e1f3a 42%, #161828 68%, #111420 100%);
-  border-bottom: 1px solid rgba(232,180,188,0.12);
-  padding: 0 24px;
-  display: flex; align-items: stretch; gap: 0;
-  position: sticky; top: 0; z-index: 100;
-  box-shadow: 0 2px 20px rgba(0,0,0,0.6);
+/* ─── SIDEBAR ────────────────────────────────── */
+.sidebar{
+  width: 240px;
+  background: white;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  top: 0; left: 0; bottom: 0;
+  z-index: 50;
+  box-shadow: 2px 0 12px rgba(180,120,150,0.08);
+  overflow-y: auto;
 }
-/* subtle horizon glow */
-.header::after{
-  content:''; position:absolute; bottom:0; left:0; right:0; height:1px;
-  background: linear-gradient(90deg, transparent, rgba(212,112,90,0.4), rgba(232,180,188,0.5), rgba(212,112,90,0.4), transparent);
-  pointer-events:none;
-}
-.header-brand{
+.sidebar-brand{
   display: flex; align-items: center; gap: 10px;
-  padding: 16px 22px 16px 0;
-  border-right: 1px solid rgba(255,255,255,0.08);
-  margin-right: 22px;
+  padding: 20px 18px 16px;
+  border-bottom: 1px solid var(--border);
 }
 .brand-icon{
-  width: 32px; height: 32px;
-  background: linear-gradient(135deg, #E8B4BC, #7A3858);
-  border-radius: 8px;
+  width: 34px; height: 34px;
+  background: linear-gradient(135deg, var(--pink), #8B2070);
+  border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
-  font-size: 16px; box-shadow: 0 2px 8px rgba(122,56,88,0.5);
+  font-size: 17px; box-shadow: 0 2px 8px rgba(212,86,138,0.35);
 }
-.brand-name{ font-size: 15px; font-weight: 700; letter-spacing: -0.02em; color: #EDE8F0; }
-.brand-name span{ color: rgba(232,180,188,0.6); font-weight: 400; }
+.brand-name{ font-size: 16px; font-weight: 700; letter-spacing: -0.02em; color: var(--text); }
+.brand-name span{ color: var(--text3); font-weight: 400; }
+.sidebar-nav{ flex: 1; padding: 10px 0; }
+.nav-section-label{
+  font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em;
+  color: var(--text3); font-weight: 700;
+  padding: 10px 18px 4px;
+}
+.nav-item{
+  display: flex; align-items: center; gap: 10px;
+  padding: 11px 16px; border-radius: 10px;
+  margin: 2px 8px;
+  border: none; background: transparent;
+  color: var(--text2); font-size: 14px; font-weight: 500;
+  cursor: pointer; transition: all 0.15s; text-align: left; width: calc(100% - 16px);
+}
+.nav-item:hover{ background: var(--bg); color: var(--text); }
+.nav-item.active{ background: var(--pink-bg); color: var(--pink); font-weight: 600; }
+.nav-icon{ font-size: 16px; width: 22px; text-align: center; }
+.sidebar-footer{ padding: 12px 8px 16px; border-top: 1px solid var(--border); }
 
-.bal-group{ display: flex; align-items: center; gap: 10px; padding: 16px 0; }
+/* ─── MAIN AREA ──────────────────────────────── */
+.main-area{ margin-left: 240px; min-height: 100vh; display: flex; flex-direction: column; }
+
+/* ─── TOPBAR ─────────────────────────────────── */
+.topbar{
+  background: white;
+  border-bottom: 1px solid var(--border);
+  padding: 14px 24px;
+  display: flex; align-items: center; gap: 12px;
+  position: sticky; top: 0; z-index: 40;
+  box-shadow: 0 1px 8px rgba(180,120,150,0.06);
+}
+.topbar-title{ font-size: 17px; font-weight: 700; color: var(--text); flex: 1; }
+.bal-group{ display: flex; align-items: center; gap: 10px; }
 .bal-chip{
   display: flex; flex-direction: column; gap: 1px;
   padding: 6px 14px;
-  background: rgba(255,255,255,0.06);
-  border: 1px solid rgba(255,255,255,0.1);
-  border-radius: 20px; backdrop-filter: blur(4px);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 20px;
 }
-.bal-chip .lbl{ font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em; color: rgba(232,180,188,0.55); }
+.bal-chip .lbl{ font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text3); }
 .bal-chip .val{ font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
-.bal-chip.actual .val{ color: #E8B4BC; }
-.bal-chip.projected .val{ color: #A8C4D8; }
-
-.header-gap{ flex: 1; }
-.header-actions{ display: flex; align-items: center; gap: 8px; }
+.bal-chip.actual .val{ color: var(--coral); }
+.bal-chip.projected .val{ color: var(--teal); }
 .hdr-btn{
-  background: rgba(255,255,255,0.08); border: 1px solid rgba(255,255,255,0.14);
-  border-radius: var(--r-sm); color: rgba(237,232,240,0.8);
-  padding: 6px 14px; font-size: 12px; cursor: pointer; font-weight: 500;
-  transition: all 0.15s; backdrop-filter: blur(4px);
+  background: var(--pink-bg); border: 1px solid var(--border2);
+  border-radius: var(--r-sm); color: var(--pink);
+  padding: 7px 14px; font-size: 12px; cursor: pointer; font-weight: 600;
+  transition: all 0.15s;
 }
-.hdr-btn:hover{ background: rgba(232,180,188,0.15); border-color: rgba(232,180,188,0.35); color: #E8B4BC; }
+.hdr-btn:hover{ background: var(--pink); color: white; }
 
-/* ─── TABS ───────────────────────────────────── */
-.tabs{
-  background: var(--card2);
-  border-bottom: 1px solid var(--border);
-  padding: 0 24px; display: flex; overflow-x: auto; gap: 0;
-}
-.tabs::-webkit-scrollbar{ height: 2px; }
-.tabs::-webkit-scrollbar-thumb{ background: var(--border2); }
-.tab{
-  padding: 13px 18px; font-size: 13px; font-weight: 500; cursor: pointer;
-  border: none; background: transparent; color: var(--text3);
-  border-bottom: 2px solid transparent; margin-bottom: -1px;
-  white-space: nowrap; transition: all 0.15s;
-}
-.tab:hover{ color: var(--text2); }
-.tab.active{ color: var(--pink); border-bottom-color: var(--pink); }
+/* ─── PAGE CONTENT ───────────────────────────── */
+.page-content{ flex: 1; max-width: 1200px; width: 100%; padding: 24px; }
 
-/* ─── CONTENT ────────────────────────────────── */
-.content{ padding: 24px; max-width: 1200px; margin: 0 auto; }
+/* ─── BOTTOM NAV (mobile) ────────────────────── */
+.bottom-nav{
+  display: none;
+  position: fixed; bottom: 0; left: 0; right: 0;
+  background: rgba(255,255,255,0.95);
+  backdrop-filter: blur(10px);
+  border-top: 1px solid var(--border);
+  padding: 8px 0 max(8px, env(safe-area-inset-bottom));
+  z-index: 50;
+  justify-content: space-around;
+}
+.bottom-nav .nav-item{
+  flex-direction: column; gap: 3px;
+  padding: 6px 12px;
+  font-size: 10px;
+  margin: 0;
+  width: auto;
+}
+.bottom-nav .nav-item .nav-icon{ font-size: 20px; }
+.nav-label{ font-size: 10px; }
+
+@media(max-width:768px){
+  .sidebar{ display: none; }
+  .main-area{ margin-left: 0 !important; padding-bottom: 70px; }
+  .bottom-nav{ display: flex; }
+}
 
 /* ─── BUTTONS ────────────────────────────────── */
 .btn{
@@ -136,21 +181,21 @@ body{
   font-size: 13px; font-weight: 500; cursor: pointer; border: none;
   transition: all 0.15s; letter-spacing: 0.01em;
 }
-.btn-primary{ background: var(--mauve); color: #fff; box-shadow: 0 2px 8px rgba(160,120,152,0.4); }
-.btn-primary:hover{ background: #8a6584; }
-.btn-teal{ background: var(--slate); color: #fff; box-shadow: 0 2px 8px rgba(80,100,120,0.4); }
-.btn-teal:hover{ background: #445669; }
+.btn-primary{ background: var(--pink); color: #fff; box-shadow: 0 2px 8px rgba(212,86,138,0.3); }
+.btn-primary:hover{ background: #b83d76; }
+.btn-teal{ background: var(--teal); color: #fff; box-shadow: 0 2px 8px rgba(58,188,170,0.3); }
+.btn-teal:hover{ background: #2e9e8e; }
 .btn-ghost{ background: transparent; border: 1px solid var(--border2); color: var(--text2); }
-.btn-ghost:hover{ background: var(--card2); border-color: var(--mauve); color: var(--pink); }
-.btn-danger{ background: var(--coral-bg); border: 1px solid rgba(212,112,90,0.3); color: var(--coral); }
-.btn-danger:hover{ background: rgba(212,112,90,0.22); }
+.btn-ghost:hover{ background: var(--bg2); border-color: var(--pink); color: var(--pink); }
+.btn-danger{ background: var(--coral-bg); border: 1px solid rgba(232,96,90,0.3); color: var(--coral); }
+.btn-danger:hover{ background: rgba(232,96,90,0.15); }
 .btn-sm{ padding: 5px 11px; font-size: 12px; }
 .icon-btn{
   background: transparent; border: none; cursor: pointer;
   color: var(--text3); padding: 5px 6px; border-radius: var(--r-sm);
   transition: all 0.15s; font-size: 13px;
 }
-.icon-btn:hover{ background: var(--card2); color: var(--text); }
+.icon-btn:hover{ background: var(--bg2); color: var(--text); }
 .icon-btn.del:hover{ background: var(--coral-bg); color: var(--coral); }
 
 /* ─── SECTION HEADER ─────────────────────────── */
@@ -162,6 +207,9 @@ body{
 .card{ background: var(--card); border: 1px solid var(--border); border-radius: var(--r); box-shadow: var(--shadow); }
 .card-pad{ padding: 20px; }
 .cards-grid{ display: grid; grid-template-columns: repeat(auto-fill, minmax(290px,1fr)); gap: 16px; }
+/* Widget card for home dashboard */
+.widget-card{ background: var(--card); border-radius: var(--r); box-shadow: var(--shadow); border: 1px solid var(--border); overflow: hidden; }
+.widget-title{ font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text3); margin-bottom: 12px; }
 
 /* ─── TABLE ──────────────────────────────────── */
 .table-wrap{ overflow-x: auto; border-radius: var(--r); border: 1px solid var(--border); box-shadow: var(--shadow); }
@@ -175,27 +223,27 @@ th{
 }
 td{ padding: 10px 14px; border-bottom: 1px solid var(--border); vertical-align: middle; }
 tbody tr:last-child td{ border-bottom: none; }
-tbody tr:hover td{ background: rgba(255,255,255,0.025); }
-tbody tr.paid td{ opacity: 0.38; }
-tbody tr.going-neg td{ background: rgba(212,112,90,0.08); }
+tbody tr:hover td{ background: var(--bg); }
+tbody tr.paid td{ opacity: 0.45; }
+tbody tr.going-neg td{ background: rgba(232,96,90,0.05); }
 tbody tr.going-neg td.running-neg{ color: var(--coral) !important; font-weight: 800 !important; }
 .neg-warning{ color: var(--coral); font-size: 13px; margin-left: 4px; }
 .collapsed-row td{ background: var(--bg2); font-style: italic; color: var(--text3); cursor: pointer; }
-.collapsed-row:hover td{ background: var(--card2); }
+.collapsed-row:hover td{ background: var(--bg); }
 .mono{ font-variant-numeric: tabular-nums; }
-.pos{ color: var(--pink); }
+.pos{ color: var(--teal); }
 .neg{ color: var(--coral); }
 
 /* ─── BADGES ─────────────────────────────────── */
 .badge{ display: inline-flex; align-items: center; padding: 2px 9px; border-radius: 20px; font-size: 11px; font-weight: 600; letter-spacing: 0.02em; }
-.badge-income{ background: var(--pink-bg); color: var(--pink); }
-.badge-bill{ background: var(--slate-bg); color: #8aaac0; }
+.badge-income{ background: var(--teal-bg); color: var(--teal); }
+.badge-bill{ background: var(--blue-bg); color: var(--blue); }
 .badge-critical{ background: var(--coral-bg); color: var(--coral); }
-.badge-borrow{ background: var(--mauve-bg); color: var(--mauve); }
-.badge-repay{ background: var(--mauve-bg); color: var(--mauve); }
-.badge-extra{ background: var(--rose-bg); color: #c080a0; }
+.badge-borrow{ background: var(--gold-bg); color: var(--gold); }
+.badge-repay{ background: var(--pink-bg); color: var(--pink); }
+.badge-extra{ background: var(--lav-bg); color: var(--lavender); }
 .badge-start{ background: var(--pink-bg); color: var(--pink); }
-.badge-purchase{ background: rgba(80,100,120,0.18); color: #8aaac0; }
+.badge-purchase{ background: var(--blue-bg); color: var(--blue); }
 
 /* ─── FILTER BAR ─────────────────────────────── */
 .filter-bar{ display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
@@ -208,56 +256,56 @@ tbody tr.going-neg td.running-neg{ color: var(--coral) !important; font-weight: 
 .filter-bar input[type=text]{ width: 180px; }
 .filter-bar input[type=number]{ width: 110px; }
 .filter-bar input::placeholder{ color: var(--text3); }
-.filter-bar select:focus,.filter-bar input:focus{ outline: none; border-color: var(--mauve); }
+.filter-bar select:focus,.filter-bar input:focus{ outline: none; border-color: var(--pink); }
 .filter-clear{ font-size: 12px; color: var(--text3); cursor: pointer; padding: 4px 8px; border-radius: var(--r-sm); border: none; background: transparent; transition: all 0.15s; }
 .filter-clear:hover{ color: var(--coral); background: var(--coral-bg); }
 
 /* ─── PROGRESS ───────────────────────────────── */
-.prog-track{ height: 7px; background: var(--bg2); border-radius: 4px; }
-.prog-fill{ height: 7px; border-radius: 4px; background: linear-gradient(90deg, var(--rose), var(--mauve), var(--pink)); transition: width 0.4s ease; }
-.prog-fill.done{ background: linear-gradient(90deg, #7A3858, #E8B4BC); }
+.prog-track{ height: 7px; background: var(--border); border-radius: 4px; }
+.prog-fill{ height: 7px; border-radius: 4px; background: linear-gradient(90deg, var(--pink), var(--lavender)); transition: width 0.4s ease; }
+.prog-fill.done{ background: linear-gradient(90deg, var(--teal), #60d8c8); }
 .prog-labels{ display: flex; justify-content: space-between; font-size: 11px; color: var(--text3); margin-top: 5px; }
 
 /* ─── TOGGLE ─────────────────────────────────── */
 .toggle{ position: relative; display: inline-block; width: 38px; height: 21px; flex-shrink: 0; }
 .toggle input{ opacity: 0; width: 0; height: 0; position: absolute; }
 .toggle-track{ position: absolute; cursor: pointer; inset: 0; background: var(--border2); border-radius: 21px; transition: 0.2s; }
-.toggle-track:before{ content:''; position:absolute; height:15px; width:15px; left:3px; bottom:3px; background:#c0b0c8; border-radius:50%; transition:0.2s; box-shadow:0 1px 3px rgba(0,0,0,0.4); }
-.toggle input:checked + .toggle-track{ background: var(--mauve); }
+.toggle-track:before{ content:''; position:absolute; height:15px; width:15px; left:3px; bottom:3px; background:#ccc; border-radius:50%; transition:0.2s; box-shadow:0 1px 3px rgba(0,0,0,0.2); }
+.toggle input:checked + .toggle-track{ background: var(--pink); }
 .toggle input:checked + .toggle-track:before{ transform: translateX(17px); background:#fff; }
 
 /* ─── CALENDAR ───────────────────────────────── */
 .cal-nav-row{ display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
 .cal-nav-btn{ background: var(--card); border: 1px solid var(--border2); border-radius: var(--r-sm); padding: 7px 16px; cursor: pointer; color: var(--text); font-size: 15px; box-shadow: var(--shadow); transition: all 0.15s; }
-.cal-nav-btn:hover{ background: var(--card2); border-color: var(--mauve); color: var(--pink); }
+.cal-nav-btn:hover{ background: var(--bg2); border-color: var(--pink); color: var(--pink); }
 .cal-month-title{ font-size: 18px; font-weight: 700; color: var(--text); }
 .cal-grid{ display: grid; grid-template-columns: repeat(7,1fr); gap: 3px; }
 .cal-dow{ text-align: center; padding: 8px 2px; font-size: 11px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
 .cal-day{ background: var(--card); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 7px; min-height: 76px; cursor: pointer; transition: all 0.15s; }
-.cal-day:hover{ border-color: var(--mauve); background: var(--card2); }
-.cal-day.other-month{ opacity: 0.15; pointer-events: none; }
+.cal-day:hover{ border-color: var(--pink); background: var(--bg); }
+.cal-day.other-month{ opacity: 0.25; pointer-events: none; }
 .cal-day.is-today{ border-color: var(--pink); border-width: 2px; }
 .cal-day-num{ font-size: 12px; color: var(--text3); margin-bottom: 4px; font-weight: 600; }
 .cal-pill{ font-size: 10px; padding: 2px 6px; border-radius: 4px; margin: 1px 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; line-height: 1.4; font-weight: 500; }
-.cal-pill.income,.cal-pill.start{ background: var(--pink-bg); color: var(--pink); }
+.cal-pill.income,.cal-pill.start{ background: var(--teal-bg); color: var(--teal); }
 .cal-pill.critical{ background: var(--coral-bg); color: var(--coral); }
-.cal-pill.bill{ background: var(--slate-bg); color: #8aaac0; }
-.cal-pill.borrow,.cal-pill.repay,.cal-pill.extra{ background: var(--mauve-bg); color: var(--mauve); }
+.cal-pill.bill{ background: var(--blue-bg); color: var(--blue); }
+.cal-pill.borrow,.cal-pill.repay,.cal-pill.extra{ background: var(--pink-bg); color: var(--pink); }
 .cal-more{ font-size: 10px; color: var(--text3); padding-left: 4px; margin-top: 2px; }
 
 /* ─── DAY PANEL ──────────────────────────────── */
-.day-panel{ position: fixed; right: 0; top: 0; bottom: 0; width: 330px; max-width: 100vw; background: var(--card2); border-left: 1px solid var(--border); z-index: 200; padding: 24px; overflow-y: auto; transform: translateX(100%); transition: transform 0.22s ease; box-shadow: -4px 0 30px rgba(0,0,0,0.5); }
+.day-panel{ position: fixed; right: 0; top: 0; bottom: 0; width: 330px; max-width: 100vw; background: white; border-left: 1px solid var(--border); z-index: 200; padding: 24px; overflow-y: auto; transform: translateX(100%); transition: transform 0.22s ease; box-shadow: -4px 0 30px rgba(180,120,150,0.15); }
 .day-panel.open{ transform: translateX(0); }
 .day-panel-hdr{ display: flex; align-items: center; justify-content: space-between; margin-bottom: 16px; }
-.day-panel-close{ background: var(--bg2); border: 1px solid var(--border); border-radius: 50%; width: 28px; height: 28px; cursor: pointer; color: var(--text2); font-size: 16px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
-.day-panel-close:hover{ border-color: var(--mauve); color: var(--pink); }
-.dp-item{ background: var(--bg2); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 12px; margin-bottom: 8px; }
+.day-panel-close{ background: var(--bg); border: 1px solid var(--border); border-radius: 50%; width: 28px; height: 28px; cursor: pointer; color: var(--text2); font-size: 16px; display: flex; align-items: center; justify-content: center; transition: all 0.15s; }
+.day-panel-close:hover{ border-color: var(--pink); color: var(--pink); }
+.dp-item{ background: var(--bg); border: 1px solid var(--border); border-radius: var(--r-sm); padding: 12px; margin-bottom: 8px; }
 .dp-item-row{ display: flex; justify-content: space-between; align-items: flex-start; gap: 8px; }
 
 /* ─── WEEKLY ─────────────────────────────────── */
 .week-group{ background: var(--card); border: 1px solid var(--border); border-radius: var(--r); margin-bottom: 12px; overflow: hidden; box-shadow: var(--shadow); }
 .week-hdr{ display: flex; align-items: center; gap: 12px; padding: 14px 18px; cursor: pointer; transition: background 0.15s; user-select: none; }
-.week-hdr:hover{ background: var(--card2); }
+.week-hdr:hover{ background: var(--bg); }
 .week-title{ font-weight: 600; font-size: 13px; }
 .week-stats{ display: flex; gap: 16px; margin-left: auto; font-size: 12px; font-weight: 500; }
 .week-body{ display: none; border-top: 1px solid var(--border); }
@@ -267,10 +315,10 @@ tbody tr.going-neg td.running-neg{ color: var(--coral) !important; font-weight: 
 .cat-section{ background: var(--card); border: 1px solid var(--border); border-radius: var(--r); margin-bottom: 16px; overflow: hidden; box-shadow: var(--shadow); }
 .cat-hdr{ display: flex; align-items: center; gap: 8px; padding: 13px 18px; border-bottom: 1px solid var(--border); background: var(--bg2); }
 .cat-name{ font-weight: 700; font-size: 14px; }
-.cat-total{ margin-left: auto; font-size: 12px; color: var(--mauve); font-weight: 600; }
+.cat-total{ margin-left: auto; font-size: 12px; color: var(--pink); font-weight: 600; }
 .bill-row{ display: flex; align-items: center; gap: 10px; padding: 10px 18px; border-bottom: 1px solid var(--border); transition: background 0.12s; }
 .bill-row:last-child{ border-bottom: none; }
-.bill-row:hover{ background: var(--card2); }
+.bill-row:hover{ background: var(--bg); }
 .bill-label-cell{ flex: 1; font-size: 13px; font-weight: 500; }
 .bill-day-cell{ font-size: 11px; color: var(--text3); white-space: nowrap; }
 .bill-amt-cell{ font-size: 13px; color: var(--coral); white-space: nowrap; font-weight: 600; font-variant-numeric: tabular-nums; }
@@ -282,8 +330,8 @@ tbody tr.going-neg td.running-neg{ color: var(--coral) !important; font-weight: 
   color: var(--text2); font-weight: 500;
 }
 .cat-nav-item:last-child{ border-bottom: none; }
-.cat-nav-item:hover{ background: var(--card2); color: var(--text); }
-.cat-nav-item.active{ background: var(--mauve-bg); color: var(--pink); border-left: 3px solid var(--mauve); }
+.cat-nav-item:hover{ background: var(--bg); color: var(--text); }
+.cat-nav-item.active{ background: var(--pink-bg); color: var(--pink); border-left: 3px solid var(--pink); }
 .cat-nav-count{ font-size: 11px; color: var(--text3); background: var(--bg2); border-radius: 10px; padding: 1px 7px; }
 
 /* ─── GOALS ──────────────────────────────────── */
@@ -295,7 +343,7 @@ tbody tr.going-neg td.running-neg{ color: var(--coral) !important; font-weight: 
 .prog-wrap{ margin-bottom: 14px; }
 .quick-update{ display: flex; gap: 6px; }
 .quick-update input{ flex: 1; background: var(--bg2); border: 1px solid var(--border2); border-radius: var(--r-sm); color: var(--text); padding: 7px 10px; font-size: 13px; }
-.quick-update input:focus{ outline: none; border-color: var(--mauve); }
+.quick-update input:focus{ outline: none; border-color: var(--pink); }
 
 /* ─── STAGING ────────────────────────────────── */
 .staging-item{ background: var(--card); border: 1px solid var(--border); border-radius: var(--r); padding: 16px 18px; margin-bottom: 10px; display: flex; align-items: center; gap: 14px; box-shadow: var(--shadow); transition: border-color 0.15s; }
@@ -304,7 +352,7 @@ tbody tr.going-neg td.running-neg{ color: var(--coral) !important; font-weight: 
 .staging-info{ flex: 1; }
 .staging-label{ font-size: 14px; font-weight: 600; }
 .staging-meta{ font-size: 12px; color: var(--text3); margin-top: 2px; }
-.staging-amt{ font-size: 17px; font-weight: 700; color: var(--pink); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.staging-amt{ font-size: 17px; font-weight: 700; color: var(--teal); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .staging-right{ display: flex; flex-direction: column; align-items: flex-end; gap: 6px; flex-shrink: 0; }
 
 /* ─── PAYCHECK ───────────────────────────────── */
@@ -314,31 +362,31 @@ tbody tr.going-neg td.running-neg{ color: var(--coral) !important; font-weight: 
 .pc-line:last-of-type{ border-bottom: none; }
 .pc-line.total-line{ font-weight: 700; font-size: 15px; padding-top: 12px; border-top: 2px solid var(--border2); border-bottom: none; }
 .pc-takehome{ text-align: center; margin-top: 18px; padding-top: 18px; border-top: 1px solid var(--border); }
-.takehome-num{ font-size: 40px; font-weight: 800; color: var(--pink); letter-spacing: -0.03em; }
+.takehome-num{ font-size: 40px; font-weight: 800; color: var(--teal); letter-spacing: -0.03em; }
 .takehome-sub{ font-size: 12px; color: var(--text3); margin-top: 4px; }
 .pc-placeholder{ color: var(--text3); font-size: 13px; padding: 40px 0; text-align: center; }
 
 /* ─── MODAL ──────────────────────────────────── */
-.modal-overlay{ position: fixed; inset: 0; background: rgba(10,10,18,0.75); z-index: 300; display: none; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(4px); }
+.modal-overlay{ position: fixed; inset: 0; background: rgba(45,31,45,0.5); z-index: 300; display: none; align-items: center; justify-content: center; padding: 20px; backdrop-filter: blur(4px); }
 .modal-overlay.open{ display: flex; }
-.modal{ background: var(--card2); border: 1px solid var(--border2); border-radius: 14px; padding: 26px; width: 100%; max-width: 460px; max-height: 92vh; overflow-y: auto; box-shadow: var(--shadow-md); }
+.modal{ background: white; border: 1px solid var(--border); border-radius: 18px; padding: 26px; width: 100%; max-width: 460px; max-height: 92vh; overflow-y: auto; box-shadow: var(--shadow-md); }
 .modal-title{ font-size: 17px; font-weight: 700; margin-bottom: 20px; color: var(--text); }
 .form-group{ margin-bottom: 15px; }
 .form-label{ display: block; font-size: 11px; color: var(--text3); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
 .form-input,.form-select{ width: 100%; background: var(--bg); border: 1px solid var(--border2); border-radius: var(--r-sm); color: var(--text); padding: 9px 13px; font-size: 14px; transition: border-color 0.15s; }
-.form-input:focus,.form-select:focus{ outline: none; border-color: var(--mauve); box-shadow: 0 0 0 3px rgba(160,120,152,0.15); }
+.form-input:focus,.form-select:focus{ outline: none; border-color: var(--pink); box-shadow: 0 0 0 3px rgba(212,86,138,0.12); }
 .form-row{ display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .modal-actions{ display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px; }
-.modal-note{ font-size: 13px; color: var(--text2); margin-bottom: 16px; line-height: 1.6; background: var(--mauve-bg); border: 1px solid rgba(160,120,152,0.2); border-radius: var(--r-sm); padding: 10px 13px; }
+.modal-note{ font-size: 13px; color: var(--text2); margin-bottom: 16px; line-height: 1.6; background: var(--pink-bg); border: 1px solid rgba(212,86,138,0.15); border-radius: var(--r-sm); padding: 10px 13px; }
 
 /* ─── UNDO TOAST ─────────────────────────────── */
-.undo-toast{ position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: var(--card2); border: 1px solid var(--border2); color: var(--text); border-radius: 24px; padding: 11px 20px; display: flex; align-items: center; gap: 14px; font-size: 13px; z-index: 400; opacity: 0; pointer-events: none; transition: opacity 0.2s; white-space: nowrap; box-shadow: var(--shadow-md); }
+.undo-toast{ position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%); background: white; border: 1px solid var(--border); color: var(--text); border-radius: 24px; padding: 11px 20px; display: flex; align-items: center; gap: 14px; font-size: 13px; z-index: 400; opacity: 0; pointer-events: none; transition: opacity 0.2s; white-space: nowrap; box-shadow: var(--shadow-md); }
 .undo-toast.show{ opacity: 1; pointer-events: all; }
-.undo-do{ background: var(--mauve); color: #fff; border: none; border-radius: 14px; padding: 4px 13px; cursor: pointer; font-size: 12px; font-weight: 600; }
+.undo-do{ background: var(--pink); color: #fff; border: none; border-radius: 14px; padding: 4px 13px; cursor: pointer; font-size: 12px; font-weight: 600; }
 
 /* ─── EXTEND BANNER ──────────────────────────── */
-.extend-banner{ background: var(--rose-bg); border: 1px solid rgba(122,56,88,0.3); border-radius: var(--r); padding: 14px 18px; margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
-.extend-banner-text{ font-size: 13px; color: #c080a0; font-weight: 500; }
+.extend-banner{ background: var(--pink-bg); border: 1px solid rgba(212,86,138,0.2); border-radius: var(--r); padding: 14px 18px; margin-bottom: 18px; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.extend-banner-text{ font-size: 13px; color: var(--pink); font-weight: 500; }
 
 /* ─── MISC ───────────────────────────────────── */
 .empty-state{ color: var(--text3); font-size: 13px; padding: 36px 0; text-align: center; }
@@ -346,17 +394,17 @@ tbody tr.going-neg td.running-neg{ color: var(--coral) !important; font-weight: 
 .divider{ height: 1px; background: var(--border); margin: 20px 0; }
 
 /* ─── OVERALL GOALS CARD ─────────────────────── */
-.goals-overall{ background: linear-gradient(135deg, var(--rose-bg), var(--mauve-bg)); border: 1px solid rgba(122,56,88,0.25); border-radius: var(--r); padding: 18px; margin-bottom: 20px; box-shadow: var(--shadow); }
+.goals-overall{ background: linear-gradient(135deg, var(--gold-bg), var(--pink-bg)); border: 1px solid rgba(232,160,48,0.2); border-radius: var(--r); padding: 18px; margin-bottom: 20px; box-shadow: var(--shadow); }
 
 @media(max-width:720px){
   .pc-layout{ grid-template-columns: 1fr; }
   .form-row{ grid-template-columns: 1fr; }
-  .content{ padding: 14px; }
-  .tab{ padding: 12px 13px; font-size: 12px; }
-  .header{ padding: 0 14px; }
+  .page-content{ padding: 14px; }
   .bal-chip .val{ font-size: 13px; }
   .week-stats{ display: none; }
 }
+
+/* ─── BADGES — light theme ───────────────────── */
 /* ─── PIN SCREEN ─────────────────────────────── */
 .pin-overlay{
   position:fixed;inset:0;z-index:9999;
@@ -413,51 +461,85 @@ tbody tr.going-neg td.running-neg{ color: var(--coral) !important; font-weight: 
   <div class="pin-forgot" id="pinForgot" onclick="pinForgot()" style="display:none">Forgot PIN?</div>
 </div>
 
-<!-- ─── HEADER ──────────────────────────────────── -->
-<div class="header">
-  <div class="header-brand">
+<!-- ─── SIDEBAR ─────────────────────────────────── -->
+<aside class="sidebar">
+  <div class="sidebar-brand">
     <div class="brand-icon">💎</div>
     <div class="brand-name">Clarity <span>OS</span></div>
   </div>
+  <nav class="sidebar-nav">
+    <button class="nav-item active" data-tab="home" onclick="switchTab('home',this)">
+      <span class="nav-icon">🏠</span> Home
+    </button>
+    <div class="nav-section-label">Finance</div>
+    <button class="nav-item" data-tab="timeline" onclick="switchTab('timeline',this)">
+      <span class="nav-icon">💰</span> Finance
+    </button>
+    <button class="nav-item" data-tab="calendar" onclick="switchTab('calendar',this)">
+      <span class="nav-icon">📅</span> Calendar
+    </button>
+    <button class="nav-item" data-tab="weekly" onclick="switchTab('weekly',this)">
+      <span class="nav-icon">📋</span> Weekly
+    </button>
+    <button class="nav-item" data-tab="bills" onclick="switchTab('bills',this)">
+      <span class="nav-icon">🧾</span> Bills
+    </button>
+    <button class="nav-item" data-tab="goals" onclick="switchTab('goals',this)">
+      <span class="nav-icon">🎯</span> Goals
+    </button>
+    <button class="nav-item" data-tab="income" onclick="switchTab('income',this)">
+      <span class="nav-icon">💡</span> Income
+    </button>
+    <button class="nav-item" data-tab="spending" onclick="switchTab('spending',this)">
+      <span class="nav-icon">💸</span> Spending
+    </button>
+    <div class="nav-section-label">Health</div>
+    <button class="nav-item" data-tab="meds" onclick="switchTab('meds',this)">
+      <span class="nav-icon">💊</span> Medications
+    </button>
+    <div class="nav-section-label">Tools</div>
+    <button class="nav-item" data-tab="paycheck" onclick="switchTab('paycheck',this)">
+      <span class="nav-icon">💼</span> Paycheck
+    </button>
+  </nav>
+  <div class="sidebar-footer">
+    <button class="nav-item" style="width:100%" onclick="openUpdateBalance()">
+      <span class="nav-icon">⚙️</span> Update Balance
+    </button>
+  </div>
+</aside>
+
+<!-- ─── MAIN AREA ─────────────────────────────────── -->
+<div class="main-area">
+
+<!-- ─── TOPBAR ────────────────────────────────────── -->
+<div class="topbar">
+  <div class="topbar-title" id="pageTitle">Home</div>
   <div class="bal-group">
     <div class="bal-chip actual">
       <span class="lbl">Actual Balance</span>
       <span class="val" id="actualBal">—</span>
     </div>
     <div class="bal-chip projected">
-      <span class="lbl">Projected Year-End</span>
+      <span class="lbl">Year-End</span>
       <span class="val" id="projectedBal">—</span>
     </div>
   </div>
-  <div class="header-gap"></div>
-  <div class="header-actions">
-    <button class="hdr-btn" onclick="openUpdateBalance()">Update Balance</button>
-  </div>
 </div>
 
-<!-- ─── TABS ────────────────────────────────────── -->
-<div class="tabs">
-  <button class="tab active" data-tab="timeline"  onclick="switchTab('timeline',this)">Timeline</button>
-  <button class="tab"        data-tab="calendar"  onclick="switchTab('calendar',this)">Calendar</button>
-  <button class="tab"        data-tab="weekly"    onclick="switchTab('weekly',this)">Weekly</button>
-  <button class="tab"        data-tab="bills"     onclick="switchTab('bills',this)">Bills</button>
-  <button class="tab"        data-tab="goals"     onclick="switchTab('goals',this)">Goals</button>
-  <button class="tab"        data-tab="income"    onclick="switchTab('income',this)">Income</button>
-  <button class="tab"        data-tab="spending"  onclick="switchTab('spending',this)">Spending</button>
-  <button class="tab"        data-tab="meds"      onclick="switchTab('meds',this)">💊 Meds</button>
-  <button class="tab"        data-tab="paycheck"  onclick="switchTab('paycheck',this)">Paycheck</button>
-</div>
+<!-- ─── PAGE CONTENT ──────────────────────────────── -->
+<div class="page-content">
 
-<!-- ─── CONTENT ─────────────────────────────────── -->
-<div class="content">
+  <!-- HOME -->
+  <div id="tab-home"></div>
 
   <!-- TIMELINE -->
-  <div id="tab-timeline">
+  <div id="tab-timeline" style="display:none">
     <div class="sec-hdr">
       <div class="sec-title">Transaction Ledger</div>
       <div class="sec-actions" style="flex-wrap:wrap">
         <!-- Balance on date -->
-        <div style="display:flex;align-items:center;gap:6px;background:var(--card);border:1px solid var(--border2);border-radius:var(--r-sm);padding:4px 10px">
+        <div style="display:flex;align-items:center;gap:6px;background:var(--bg);border:1px solid var(--border2);border-radius:var(--r-sm);padding:4px 10px">
           <span style="font-size:12px;color:var(--text3)">Balance on</span>
           <input type="date" id="balOnDate" class="form-input" style="border:none;background:transparent;padding:0;font-size:12px;width:130px" onchange="showBalOnDate()">
           <span id="balOnDateVal" style="font-size:13px;font-weight:700;min-width:80px"></span>
@@ -574,7 +656,7 @@ tbody tr.going-neg td.running-neg{ color: var(--coral) !important; font-weight: 
     <div class="sec-hdr">
       <div class="sec-title">Spending Analysis</div>
       <div class="sec-actions">
-        <select id="spendMonth" onchange="renderSpending()" style="background:var(--card);border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--text);padding:7px 11px;font-size:13px">
+        <select id="spendMonth" onchange="renderSpending()" class="form-select" style="width:auto;padding:7px 11px;font-size:13px">
           <option value="">All Time</option>
           <option value="ytd">Year to Date</option>
           <option value="05">May</option><option value="06">June</option>
@@ -582,7 +664,7 @@ tbody tr.going-neg td.running-neg{ color: var(--coral) !important; font-weight: 
           <option value="09">September</option><option value="10">October</option>
           <option value="11">November</option><option value="12">December</option>
         </select>
-        <button class="btn btn-ghost btn-sm" onclick="openManageSpendCats()">⚙ Categories</button>
+        <button class="btn btn-ghost btn-sm" onclick="openManageSpendCats()">⚙️ Categories</button>
       </div>
     </div>
     <!-- Summary chips -->
@@ -657,7 +739,27 @@ tbody tr.going-neg td.running-neg{ color: var(--coral) !important; font-weight: 
     </div>
   </div>
 
-</div><!-- /content -->
+</div><!-- /page-content -->
+</div><!-- /main-area -->
+
+<!-- Bottom nav (mobile) -->
+<nav class="bottom-nav">
+  <button class="nav-item active" data-tab="home" onclick="switchTab('home',this)">
+    <span class="nav-icon">🏠</span><span class="nav-label">Home</span>
+  </button>
+  <button class="nav-item" data-tab="timeline" onclick="switchTab('timeline',this)">
+    <span class="nav-icon">💰</span><span class="nav-label">Finance</span>
+  </button>
+  <button class="nav-item" data-tab="goals" onclick="switchTab('goals',this)">
+    <span class="nav-icon">🎯</span><span class="nav-label">Goals</span>
+  </button>
+  <button class="nav-item" data-tab="meds" onclick="switchTab('meds',this)">
+    <span class="nav-icon">💊</span><span class="nav-label">Meds</span>
+  </button>
+  <button class="nav-item" data-tab="spending" onclick="switchTab('spending',this)">
+    <span class="nav-icon">💸</span><span class="nav-label">Spending</span>
+  </button>
+</nav>
 
 <!-- Day panel -->
 <div class="day-panel" id="dayPanel">
@@ -699,7 +801,7 @@ const S = {
   meds:[], medLogs:[],
   undo:null, undoTimer:null,
   calMonth:5, calYear:2026,
-  openWeeks:new Set(), activeTab:'timeline', showChecked:false,
+  openWeeks:new Set(), activeTab:'home', showChecked:false,
   chartDrill: null, chartInstance: null
 }
 
@@ -1071,13 +1173,17 @@ async function doUndo(){
 function switchTab(name,btn){
   document.querySelectorAll('[id^="tab-"]').forEach(el=>el.style.display='none')
   document.getElementById('tab-'+name).style.display=''
-  document.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'))
-  btn.classList.add('active')
+  document.querySelectorAll('.nav-item').forEach(t=>t.classList.remove('active'))
+  document.querySelectorAll(`[data-tab="${name}"]`).forEach(el=>el.classList.add('active'))
   S.activeTab=name
   renderTab(name)
+  const titles = {home:'Home',timeline:'Finance',calendar:'Calendar',weekly:'Weekly',bills:'Bills',goals:'Goals',income:'Income',spending:'Spending',meds:'Medications',paycheck:'Paycheck'}
+  const titleEl = document.getElementById('pageTitle')
+  if(titleEl) titleEl.textContent = titles[name]||name
 }
 function renderTab(n){
-  if(n==='timeline') renderTimeline()
+  if(n==='home') renderHome()
+  else if(n==='timeline') renderTimeline()
   else if(n==='calendar') renderCalendar()
   else if(n==='weekly') renderWeekly()
   else if(n==='bills') renderBills()
@@ -1130,7 +1236,7 @@ function showBalOnDate(){
   const val = last ? last.running : 0
   const el = document.getElementById('balOnDateVal')
   el.textContent = fmt(val)
-  el.style.color = val < 0 ? 'var(--coral)' : '#59C9BC'
+  el.style.color = val < 0 ? 'var(--coral)' : 'var(--teal)'
 }
 
 function renderTimeline(){
@@ -1171,13 +1277,19 @@ function renderTimeline(){
         <td colspan="7" style="text-align:center;padding:8px">▲ Hide ${checked.length} paid/cleared items</td>
       </tr>`
     } else {
-      const totalIn  = checked.filter(e=>e.amount>0&&e.type!=='start').reduce((s,e)=>s+(+e.amount),0)
-      const totalOut = checked.filter(e=>e.amount<0).reduce((s,e)=>s+(+e.amount),0)
+      const totalIn    = checked.filter(e=>e.amount>0&&e.type!=='start').reduce((s,e)=>s+(+e.amount),0)
+      const totalOut   = checked.filter(e=>e.amount<0).reduce((s,e)=>s+(+e.amount),0)
+      // Find the running balance after the last cleared item
+      const lastCleared = eventsWithRunning().filter(e=>e.checked||e.type==='start').pop()
+      const clearedBal  = lastCleared ? lastCleared.running : 0
+      const balColor    = clearedBal < 0 ? 'var(--coral)' : '#3ABCAA'
       rows += `<tr class="collapsed-row" onclick="toggleChecked()">
-        <td colspan="7" style="padding:10px 14px">
-          <span style="margin-right:12px">▼ ${checked.length} paid/cleared items</span>
-          <span style="color:#59C9BC;margin-right:8px">+${fmtAbs(totalIn)} in</span>
-          <span style="color:var(--coral)">${fmt(totalOut)} out</span>
+        <td colspan="7" style="padding:10px 14px;border-left:3px solid var(--border2)">
+          <span style="margin-right:12px;font-weight:500">▼ ${checked.length} paid/cleared items</span>
+          <span style="color:var(--teal);margin-right:8px">+${fmtAbs(totalIn)} received</span>
+          <span style="color:var(--coral);margin-right:16px">${fmt(totalOut)} paid</span>
+          <span style="color:var(--text3);margin-right:6px">→ Cleared balance:</span>
+          <span style="font-weight:700;color:${balColor}">${fmt(clearedBal)}</span>
         </td>
       </tr>`
     }
@@ -1190,9 +1302,9 @@ function renderTimeline(){
   rows += unchecked.map((e,i)=>{
     let marker = ''
     if(e.date===today&&i===unchecked.findIndex(x=>x.date===today)){
-      marker = `<tr id="today-row"><td colspan="7" style="padding:4px 14px;background:rgba(232,180,188,0.08);border-left:3px solid #E8B4BC;font-size:11px;color:#E8B4BC;font-weight:600;letter-spacing:0.05em">TODAY — ${today}</td></tr>`
+      marker = `<tr id="today-row"><td colspan="7" style="padding:4px 14px;background:var(--pink-bg);border-left:3px solid var(--pink);font-size:11px;color:var(--pink);font-weight:600;letter-spacing:0.05em">TODAY — ${today}</td></tr>`
     } else if(!hasToday&&firstUpcoming?.id===e.id){
-      marker = `<tr id="today-row"><td colspan="7" style="padding:4px 14px;background:rgba(232,180,188,0.08);border-left:3px solid #E8B4BC;font-size:11px;color:#E8B4BC;font-weight:600;letter-spacing:0.05em">UPCOMING</td></tr>`
+      marker = `<tr id="today-row"><td colspan="7" style="padding:4px 14px;background:var(--pink-bg);border-left:3px solid var(--pink);font-size:11px;color:var(--pink);font-weight:600;letter-spacing:0.05em">UPCOMING</td></tr>`
     }
     return marker + buildRow(e, today)
   }).join('')
@@ -1411,7 +1523,7 @@ async function quickSave(id){
 // ═══════════════════════════════════════════════
 // SPENDING ANALYSIS
 // ═══════════════════════════════════════════════
-const CHART_COLORS = ['#E8B4BC','#A07898','#D4705A','#7A3858','#506478','#8aaac0','#c080a0','#d4a0b0','#7090a8','#b890a8']
+const CHART_COLORS = ['#D4568A','#3ABCAA','#E8605A','#9B7EC8','#E8A030','#5A8ED4','#8B5CC8','#F0A060','#50C898','#E870B0']
 
 function renderSpending(){
   const mo = document.getElementById('spendMonth').value
@@ -1436,10 +1548,10 @@ function renderSpending(){
   // summary chips
   document.getElementById('spendSummary').innerHTML = [
     ['Total Outgoing', fmt(-totalSpend), 'var(--coral)'],
-    ['Bills & Recurring', fmt(-billTotal), 'var(--mauve)'],
-    ['Purchases', fmt(-purchTotal), 'var(--slate)'],
-    ['Total Income', fmt(incomeTotal), 'var(--pink)'],
-    ['Net', fmt(incomeTotal-totalSpend), incomeTotal>=totalSpend?'var(--pink)':'var(--coral)']
+    ['Bills & Recurring', fmt(-billTotal), 'var(--pink)'],
+    ['Purchases', fmt(-purchTotal), 'var(--blue)'],
+    ['Total Income', fmt(incomeTotal), 'var(--teal)'],
+    ['Net', fmt(incomeTotal-totalSpend), incomeTotal>=totalSpend?'var(--teal)':'var(--coral)']
   ].map(([l,v,c])=>`
     <div style="background:var(--card);border:1px solid var(--border);border-radius:var(--r);padding:12px 18px;min-width:140px">
       <div style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;margin-bottom:4px">${l}</div>
@@ -1450,7 +1562,7 @@ function renderSpending(){
     // Overview: Bills vs Purchases vs Income
     const labels = ['Bills & Recurring','Purchases & Other','Income']
     const data = [billTotal, purchTotal, incomeTotal]
-    const colors = ['#A07898','#D4705A','#E8B4BC']
+    const colors = ['#D4568A','#E8605A','#3ABCAA']
     drawChart(labels, data, colors, 'Click Bills or Purchases to drill down')
     renderSpendTable([
       {name:'Bills & Recurring', total:billTotal, count:billEvs.length, drill:'bills'},
@@ -1486,12 +1598,12 @@ function drawChart(labels, data, colors, title){
   const ctx = document.getElementById('spendChart').getContext('2d')
   S.chartInstance = new Chart(ctx, {
     type: 'doughnut',
-    data: { labels, datasets:[{ data, backgroundColor:colors, borderColor:'rgba(255,255,255,0.06)', borderWidth:2, hoverOffset:8 }] },
+    data: { labels, datasets:[{ data, backgroundColor:colors, borderColor:'rgba(255,255,255,0.8)', borderWidth:2, hoverOffset:8 }] },
     options: {
       responsive: true,
       cutout: '62%',
       plugins: {
-        legend:{ position:'bottom', labels:{ color:'#9A90A8', font:{size:11}, padding:12 } },
+        legend:{ position:'bottom', labels:{ color:'#7A6070', font:{size:11}, padding:12 } },
         tooltip:{ callbacks:{ label: ctx => ` ${fmt(ctx.raw)}` } }
       },
       onClick:(e,els)=>{
@@ -1566,7 +1678,7 @@ function renderMeds(){
       const t = new Date(takenLog.taken_at)
       const timeStr = t.toLocaleTimeString('en-US',{hour:'numeric',minute:'2-digit'})
       statusBadge = `✅ Taken at ${timeStr}`
-      statusColor = '#59C9BC'
+      statusColor = '#3ABCAA'
       actionBtns = `<button class="btn btn-ghost btn-sm" onclick="openCorrectLog('${med.id}','${today}','${takenLog.id}','${takenLog.status}','${takenLog.taken_at}')">✏️ Edit Time</button>`
     } else if(skipLog){
       statusBadge = '⏭️ Skipped today'
@@ -1582,7 +1694,7 @@ function renderMeds(){
       actionBtns = ''
     } else {
       statusBadge = '⏳ Pending'
-      statusColor = 'var(--gold,#fbbf24)'
+      statusColor = 'var(--gold)'
       actionBtns = `
         <button class="btn btn-primary btn-sm" onclick="openLogTaken('${med.id}')">Mark Taken</button>
         <button class="btn btn-ghost btn-sm" onclick="logMed('${med.id}','skip',null)">Skip</button>`
@@ -1629,11 +1741,11 @@ function renderMeds(){
       const isFuture = date > todayStr()
 
       let color, title
-      if(log?.status === 'taken'){ color='#59C9BC'; title='Taken' }
-      else if(log?.status === 'skip'){ color='#5c6070'; title='Skipped' }
-      else if(log?.status === 'missed'){ color='#D4705A'; title='Missed' }
-      else if(isFuture){ color='#1e2236'; title='Future' }
-      else{ color='#3d2535'; title='No log — click to add' }
+      if(log?.status === 'taken'){ color='#3ABCAA'; title='Taken' }
+      else if(log?.status === 'skip'){ color='#C8B0C0'; title='Skipped' }
+      else if(log?.status === 'missed'){ color='#E8605A'; title='Missed' }
+      else if(isFuture){ color='#E8E0EC'; title='Future' }
+      else{ color='#F0D8E8'; title='No log — click to add' }
 
       const clickable = !isFuture
       const onclick = clickable ? `onclick="openHistoryLog('${med.id}','${date}')"` : ''
@@ -1656,10 +1768,10 @@ function renderMeds(){
       </div>
       <div style="display:flex;gap:${isWeekly?'10px':'3px'};flex-wrap:wrap;align-items:flex-end">${dots}</div>
       <div style="display:flex;gap:16px;margin-top:10px;font-size:11px;color:var(--text3)">
-        <span><span style="color:#59C9BC">■</span> Taken</span>
-        <span><span style="color:#D4705A">■</span> Missed</span>
-        <span><span style="color:#5c6070">■</span> Skipped</span>
-        <span><span style="color:#3d2535">■</span> No log</span>
+        <span><span style="color:#3ABCAA">■</span> Taken</span>
+        <span><span style="color:#E8605A">■</span> Missed</span>
+        <span><span style="color:#C8B0C0">■</span> Skipped</span>
+        <span><span style="color:#F0D8E8">■</span> No log</span>
       </div>
     </div>`
   }).join('')
@@ -2228,6 +2340,143 @@ async function saveBalance(id){
 }
 
 // ═══════════════════════════════════════════════
+// HOME DASHBOARD
+// ═══════════════════════════════════════════════
+function renderHome(){
+  const today = todayStr()
+  const hour = new Date().getHours()
+  const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
+
+  const upcomingBills = S.events
+    .filter(e => !e.checked && e.date >= today && e.date.startsWith('2026') && e.amount < 0)
+    .sort((a,b) => a.date.localeCompare(b.date))
+    .slice(0, 5)
+
+  const totalGoals = S.goals.length
+  const doneGoals = S.goals.filter(g=>g.done).length
+  const goalPct = totalGoals ? Math.round(doneGoals/totalGoals*100) : 0
+  const topGoals = S.goals.filter(g=>!g.done).slice(0,3)
+
+  const medStatus = S.meds.map(med => {
+    const log = S.medLogs.find(l=>l.med_id===med.id&&l.date===today)
+    return {name: med.name, status: log?.status || 'pending'}
+  })
+
+  const actual = actualBalance()
+  const projected = projectedBalance()
+
+  document.getElementById('tab-home').innerHTML = `
+    <div style="padding:24px">
+      <div class="widget-card" style="margin-bottom:20px;padding:24px;border-top:4px solid var(--pink);background:linear-gradient(135deg,#fff 60%,var(--pink-bg) 100%)">
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;flex-wrap:wrap;gap:16px">
+          <div>
+            <div style="font-size:15px;font-weight:700;color:var(--text);margin-bottom:2px">${greeting}, Maria ☀️</div>
+            <div style="font-size:13px;color:var(--text3)">${new Date().toLocaleDateString('en-US',{weekday:'long',month:'long',day:'numeric',year:'numeric'})}</div>
+          </div>
+          <div style="display:flex;gap:20px;flex-wrap:wrap">
+            <div style="text-align:right">
+              <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.07em;color:var(--text3);margin-bottom:4px">Actual Balance</div>
+              <div style="font-size:32px;font-weight:800;letter-spacing:-0.02em;color:${actual>=0?'var(--coral)':'#E83030'}">${fmt(actual)}</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.07em;color:var(--text3);margin-bottom:4px">Year-End Projection</div>
+              <div style="font-size:32px;font-weight:800;letter-spacing:-0.02em;color:${projected>=0?'var(--teal)':'#E83030'}">${fmt(projected)}</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:16px">
+
+        <div class="widget-card" style="padding:20px;border-top:4px solid var(--coral)">
+          <div class="widget-title">📅 Upcoming Payments</div>
+          ${upcomingBills.length ? upcomingBills.map(e=>`
+            <div style="display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--border)">
+              <div>
+                <div style="font-size:13px;font-weight:600">${esc(e.label)}</div>
+                <div style="font-size:11px;color:var(--text3)">${fmtDate(e.date)}</div>
+              </div>
+              <div style="font-size:14px;font-weight:700;color:var(--coral)">${fmt(e.amount)}</div>
+            </div>`).join('') : '<div style="color:var(--text3);font-size:13px;padding:12px 0">No upcoming payments</div>'}
+          <button class="btn" style="width:100%;margin-top:12px;background:var(--coral-bg);color:var(--coral);font-size:12px;padding:7px" onclick="switchTab('timeline',document.querySelector('[data-tab=timeline]'))">View All →</button>
+        </div>
+
+        <div class="widget-card" style="padding:20px;border-top:4px solid var(--gold)">
+          <div class="widget-title">🎯 Goals Progress</div>
+          <div style="display:flex;align-items:center;gap:12px;margin-bottom:14px">
+            <div style="font-size:36px;font-weight:800;color:var(--gold)">${goalPct}%</div>
+            <div>
+              <div style="font-size:13px;font-weight:600">${doneGoals} of ${totalGoals} complete</div>
+              <div style="font-size:11px;color:var(--text3)">Keep going!</div>
+            </div>
+          </div>
+          <div style="height:8px;background:var(--border);border-radius:4px;margin-bottom:14px">
+            <div style="height:8px;border-radius:4px;background:linear-gradient(90deg,var(--gold),#f0c870);width:${goalPct}%;transition:width 0.4s"></div>
+          </div>
+          ${topGoals.map(g=>{
+            const p = g.target > 0 ? Math.min(100,Math.round(g.saved/g.target*100)) : 0
+            return `<div style="margin-bottom:8px">
+              <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
+                <span style="font-weight:500">${esc(g.label)}</span>
+                <span style="color:var(--text3)">${p}%</span>
+              </div>
+              <div style="height:5px;background:var(--border);border-radius:3px">
+                <div style="height:5px;border-radius:3px;background:var(--gold);width:${p}%"></div>
+              </div>
+            </div>`}).join('')}
+          <button class="btn" style="width:100%;margin-top:12px;background:var(--gold-bg);color:var(--gold);font-size:12px;padding:7px" onclick="switchTab('goals',document.querySelector('[data-tab=goals]'))">View All →</button>
+        </div>
+
+        <div class="widget-card" style="padding:20px;border-top:4px solid var(--lavender)">
+          <div class="widget-title">💊 Medications Today</div>
+          ${medStatus.map(m=>{
+            const color = m.status==='taken'?'var(--teal)':m.status==='skip'?'var(--text3)':m.status==='missed'?'var(--coral)':'var(--gold)'
+            const icon = m.status==='taken'?'✅':m.status==='skip'?'⏭️':m.status==='missed'?'❌':'⏳'
+            return `<div style="display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--border)">
+              <div style="font-size:14px;font-weight:600">${esc(m.name)}</div>
+              <div style="font-size:13px;font-weight:600;color:${color}">${icon} ${m.status}</div>
+            </div>`}).join('')||'<div style="color:var(--text3);font-size:13px">No medications set up</div>'}
+          <button class="btn" style="width:100%;margin-top:12px;background:var(--lav-bg);color:var(--lavender);font-size:12px;padding:7px" onclick="switchTab('meds',document.querySelector('[data-tab=meds]'))">View Details →</button>
+        </div>
+
+        <div class="widget-card" style="padding:20px;border-top:4px solid var(--teal);opacity:0.7">
+          <div class="widget-title">⏱️ Fasting Tracker</div>
+          <div style="text-align:center;padding:20px 0;color:var(--text3)">
+            <div style="font-size:32px;margin-bottom:8px">⏱️</div>
+            <div style="font-size:13px">Coming soon</div>
+          </div>
+        </div>
+
+        <div class="widget-card" style="padding:20px;border-top:4px solid #9B59B6;opacity:0.7">
+          <div class="widget-title">📖 Verse of the Day</div>
+          <div style="text-align:center;padding:20px 0;color:var(--text3)">
+            <div style="font-size:32px;margin-bottom:8px">✝️</div>
+            <div style="font-size:13px">Coming soon</div>
+          </div>
+        </div>
+
+        <div class="widget-card" style="padding:20px;border-top:4px solid #27AE60;opacity:0.7">
+          <div class="widget-title">✅ Todos Today</div>
+          <div style="text-align:center;padding:20px 0;color:var(--text3)">
+            <div style="font-size:32px;margin-bottom:8px">✅</div>
+            <div style="font-size:13px">Coming soon</div>
+          </div>
+        </div>
+
+        <div class="widget-card" style="padding:20px;border-top:4px solid #E74C3C;opacity:0.7">
+          <div class="widget-title">🌿 Habits &amp; Streaks</div>
+          <div style="text-align:center;padding:20px 0;color:var(--text3)">
+            <div style="font-size:32px;margin-bottom:8px">🔥</div>
+            <div style="font-size:13px">Coming soon</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  `
+}
+
+// ═══════════════════════════════════════════════
 // INIT
 // ═══════════════════════════════════════════════
 // ═══════════════════════════════════════════════
@@ -2288,7 +2537,7 @@ async function init(){
   await seedIfEmpty()
   await migrateIfNeeded()
   updateBalDisplay()
-  renderTimeline()
+  renderHome()
 }
 
 init()
