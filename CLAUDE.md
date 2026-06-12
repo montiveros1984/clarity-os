@@ -58,7 +58,7 @@ clarity-os/
 
 ### Key columns to know:
 - `events.bill_id` — links event to a bill template or income source ('elp', bill id, etc.)
-- `events.sort_order` — user-defined drag order (0 = date-based sort)
+- `events.sort_order` — drag order, used only as a same-date tiebreaker (ledger always sorts by date first, then sort_order, then type)
 - `events.tx_category` — spending category tag
 - `events.checked` — marks as paid/received (affects Actual Balance)
 - `income_sources.frequency` — biweekly/weekly/monthly/semimonthly
@@ -68,7 +68,11 @@ clarity-os/
 ## What's Been Built
 
 ### 💰 Finance Tracker
-- Full transaction ledger with running balance
+- Full transaction ledger with running balance, recalculated dynamically at render time (top-to-bottom, anchor balance + sums) — never stored per-row
+- New entries auto-insert at the correct chronological position (events always sort by date first, sort_order only breaks ties within the same date)
+- "Balance on date" = anchor balance + sum of all transactions on/before the selected date
+- Amount filter (exact match on absolute value) alongside label/min/max/month/type/paid filters
+- Add/Edit Entry form requires date, name, amount (nonzero), and category (when applicable) — invalid fields highlight in coral and block save
 - Actual balance (checked items) vs Projected year-end balance
 - Income sorts before expenses on same day
 - Going negative highlights in coral with ⚠️ warning

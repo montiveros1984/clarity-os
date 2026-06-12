@@ -442,6 +442,7 @@ tr.dragging{ opacity: 0.4; }
 .form-label{ display: block; font-size: 11px; color: var(--text3); margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
 .form-input,.form-select{ width: 100%; background: var(--bg); border: 1px solid var(--border2); border-radius: var(--r-sm); color: var(--text); padding: 9px 13px; font-size: 14px; transition: border-color 0.15s; }
 .form-input:focus,.form-select:focus{ outline: none; border-color: var(--pink); box-shadow: 0 0 0 3px rgba(212,86,138,0.12); }
+.form-input.invalid,.form-select.invalid{ border-color: var(--coral) !important; box-shadow: 0 0 0 3px rgba(255,107,107,0.12); }
 .form-row{ display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .modal-actions{ display: flex; gap: 10px; justify-content: flex-end; margin-top: 22px; }
 .modal-note{ font-size: 13px; color: var(--text2); margin-bottom: 16px; line-height: 1.6; background: var(--pink-bg); border: 1px solid rgba(212,86,138,0.15); border-radius: var(--r-sm); padding: 10px 13px; }
@@ -802,6 +803,7 @@ tr.dragging{ opacity: 0.4; }
       <input type="text" id="fLabel" placeholder="Search label…" oninput="renderTimeline()">
       <input type="number" id="fAmtMin" placeholder="Min amount" step="0.01" oninput="renderTimeline()">
       <input type="number" id="fAmtMax" placeholder="Max amount" step="0.01" oninput="renderTimeline()">
+      <input type="number" id="fAmt" placeholder="Amount =" step="0.01" oninput="renderTimeline()">
       <select id="fMonth" onchange="renderTimeline()">
         <option value="">All Months</option>
         <option value="05">May</option>
@@ -1096,13 +1098,13 @@ function typeOrder(type){
 }
 function sortedEvents(){
   return [...S.events].sort((a,b)=>{
-    // Use sort_order if both have it set
+    // Always sort by date first so the chain stays chronological
+    if(a.date!==b.date) return a.date.localeCompare(b.date)
+    // Within the same date, use sort_order (drag-to-reorder) as a tiebreaker
     const aOrd = a.sort_order||0, bOrd = b.sort_order||0
     if(aOrd&&bOrd) return aOrd-bOrd
     if(aOrd) return -1
     if(bOrd) return 1
-    // Fall back to date then type
-    if(a.date!==b.date) return a.date.localeCompare(b.date)
     return typeOrder(a.type)-typeOrder(b.type)
   })
 }
@@ -1112,6 +1114,12 @@ function eventsWithRunning(){
 }
 function actualBalance(){ return S.events.filter(e=>e.checked||e.type==='start').reduce((s,e)=>s+(+e.amount),0) }
 function projectedBalance(){ const evs=eventsWithRunning(); return evs.length?evs[evs.length-1].running:0 }
+function balanceOnDate(d){
+  // Anchor balance + sum of all transactions dated on or before d
+  return S.events
+    .filter(e=>String(e.date)<=String(d))
+    .reduce((s,e)=>s+(+e.amount),0)
+}
 function updateBalDisplay(){
   document.getElementById('actualBal').textContent    = fmt(actualBalance())
   document.getElementById('projectedBal').textContent = fmt(projectedBalance())
@@ -1470,6 +1478,7 @@ function clearFilters(){
   document.getElementById('fLabel').value=''
   document.getElementById('fAmtMin').value=''
   document.getElementById('fAmtMax').value=''
+  document.getElementById('fAmt').value=''
   document.getElementById('fMonth').value=''
   document.getElementById('fType').value=''
   document.getElementById('fPaid').value=''
@@ -1500,9 +1509,7 @@ function jumpToToday(){
 function showBalOnDate(){
   const d = document.getElementById('balOnDate').value
   if(!d) return
-  const evs = eventsWithRunning()
-  const last = [...evs].filter(e=>e.date<=d).pop()
-  const val = last ? last.running : 0
+  const val = balanceOnDate(d)
   const el = document.getElementById('balOnDateVal')
   el.textContent = fmt(val)
   el.style.color = val < 0 ? 'var(--coral)' : 'var(--teal)'
@@ -1515,6 +1522,7 @@ function renderTimeline(){
   const label  = document.getElementById('fLabel').value.trim().toLowerCase()
   const amtMin = parseFloat(document.getElementById('fAmtMin').value)
   const amtMax = parseFloat(document.getElementById('fAmtMax').value)
+  const amtEq  = parseFloat(document.getElementById('fAmt').value)
   const today  = todayStr()
   let evs = eventsWithRunning()
 
@@ -1525,6 +1533,7 @@ function renderTimeline(){
   if(label)          evs=evs.filter(e=>e.label.toLowerCase().includes(label))
   if(!isNaN(amtMin)) evs=evs.filter(e=>Math.abs(e.amount)>=amtMin)
   if(!isNaN(amtMax)) evs=evs.filter(e=>Math.abs(e.amount)<=amtMax)
+  if(!isNaN(amtEq))  evs=evs.filter(e=>Math.abs(+e.amount)===Math.abs(amtEq))
 
   if(!evs.length){
     document.getElementById('timelineBody').innerHTML='<tr><td colspan="7" class="empty-state">No entries match filters</td></tr>'
@@ -2495,15 +2504,15 @@ function eventForm(ev,edit){
   const showCat=['bill','critical','purchase','extra'].includes(ev.type||'purchase')
   const catOpts=getCatOptsForType(ev.type||'purchase', ev.tx_category||'')
   return `
-    <div class="form-group"><label class="form-label">Date</label><input type="date" id="evDate" class="form-input" value="${ev.date||''}"></div>
-    <div class="form-group"><label class="form-label">Label / Description</label><input type="text" id="evLabel" class="form-input" value="${esc(ev.label||'')}"></div>
+    <div class="form-group"><label class="form-label">Date</label><input type="date" id="evDate" class="form-input" value="${ev.date||todayStr()}" oninput="this.classList.remove('invalid')"></div>
+    <div class="form-group"><label class="form-label">Label / Description</label><input type="text" id="evLabel" class="form-input" value="${esc(ev.label||'')}" oninput="this.classList.remove('invalid')"></div>
     <div class="form-row">
       <div class="form-group">
         <label class="form-label">Amount</label>
         <div style="display:flex;gap:8px;align-items:center">
           <button type="button" id="evSign" onclick="toggleEvSign()"
             style="flex-shrink:0;width:42px;padding:9px 0;border-radius:var(--r-sm);border:1px solid var(--border2);font-size:15px;font-weight:700;cursor:pointer;background:var(--coral-bg);color:var(--coral);transition:all 0.15s">−</button>
-          <input type="number" id="evAmt" class="form-input" step="0.01" min="0" value="${ev.amount?Math.abs(ev.amount):''}">
+          <input type="number" id="evAmt" class="form-input" step="0.01" min="0" value="${ev.amount?Math.abs(ev.amount):''}" oninput="this.classList.remove('invalid')">
         </div>
         <div style="font-size:11px;color:var(--text3);margin-top:4px" id="evAmtHint"></div>
       </div>
@@ -2513,7 +2522,7 @@ function eventForm(ev,edit){
     </div>
     <div class="form-group" id="evCatGroup" style="${showCat?'':'display:none'}">
       <label class="form-label">Category</label>
-      <select id="evCat" class="form-select"><option value="">— Select —</option>${catOpts}</select>
+      <select id="evCat" class="form-select" onchange="this.classList.remove('invalid')"><option value="">— Select —</option>${catOpts}</select>
     </div>
     <div class="modal-actions">
       <button class="btn btn-ghost" onclick="closeModal()">Cancel</button>
@@ -2559,18 +2568,35 @@ function updateEvCatOpts(){
 }
 
 const EXPENSE_TYPES = ['purchase','bill','critical','repay','extra']
+function validateEventForm(){
+  const dateEl=document.getElementById('evDate')
+  const labelEl=document.getElementById('evLabel')
+  const amtEl=document.getElementById('evAmt')
+  const catEl=document.getElementById('evCat')
+  const needsCat=catEl&&document.getElementById('evCatGroup').style.display!=='none'
+  const fields=[dateEl,labelEl,amtEl]
+  if(needsCat) fields.push(catEl)
+  let valid=true
+  for(const el of fields){
+    let empty=!el.value||!String(el.value).trim()
+    if(el===amtEl&&!empty&&parseFloat(el.value)===0) empty=true
+    el.classList.toggle('invalid',empty)
+    if(empty) valid=false
+  }
+  return valid
+}
 async function saveAddEvent(){
+  if(!validateEventForm()) return
   const type=document.getElementById('evType').value
   const amount=getEvSignedAmount()
   const ev={id:uid(),date:document.getElementById('evDate').value,label:document.getElementById('evLabel').value.trim(),amount,type,tx_category:document.getElementById('evCat')?.value||'',bill_id:null,checked:false}
-  if(!ev.date||!ev.label||amount===0) return alert('Please fill all fields')
   await insertEvent(ev); closeModal(); renderCurrent()
 }
 async function saveEditEvent(id){
+  if(!validateEventForm()) return
   const type=document.getElementById('evType').value
   const amount=getEvSignedAmount()
   const ch={date:document.getElementById('evDate').value,label:document.getElementById('evLabel').value.trim(),amount,type,tx_category:document.getElementById('evCat')?.value||''}
-  if(!ch.date||!ch.label||amount===0) return alert('Please fill all fields')
   await updateEvent(id,ch); closeModal(); renderCurrent()
 }
 function confirmDeleteEvent(id){
