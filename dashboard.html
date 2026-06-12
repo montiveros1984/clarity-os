@@ -1083,7 +1083,8 @@ function fmtDate(d){
   const [,m,day] = d.split('-')
   return ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'][+m-1]+' '+parseInt(day)
 }
-function todayStr(){ return new Date().toISOString().slice(0,10) }
+function localDateStr(d){ return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
+function todayStr(){ return localDateStr(new Date()) }
 function lastDay(y,m){ return new Date(y,m,0).getDate() }
 function billDateStr(y,m,day){ return `${y}-${String(m).padStart(2,'0')}-${String(Math.min(day,lastDay(y,m))).padStart(2,'0')}` }
 function amtCls(n){ return +n>=0?'pos':'neg' }
@@ -1134,7 +1135,7 @@ async function dbDel(table,id){ const {error}=await db.from(table).delete().eq('
 
 async function loadAll(){
   const today = todayStr()
-  const thirtyDaysAgo = new Date(Date.now()-30*24*60*60*1000).toISOString().slice(0,10)
+  const thirtyDaysAgo = localDateStr(new Date(Date.now()-30*24*60*60*1000))
   const [ev,bi,ca,go,st,sc,me,ml,is]=await Promise.all([
     db.from('events').select('*'),
     db.from('bills').select('*'),
@@ -1812,7 +1813,7 @@ const CHART_COLORS = ['#D4568A','#3ABCAA','#E8605A','#9B7EC8','#E8A030','#5A8ED4
 
 function renderSpending(){
   const mo = document.getElementById('spendMonth').value
-  const currentMonth = new Date().toISOString().slice(0,7) // YYYY-MM
+  const currentMonth = todayStr().slice(0,7) // YYYY-MM
   let evs = S.events.filter(e => e.amount < 0)
   if(mo === 'ytd') evs = evs.filter(e => e.date.slice(0,7) <= currentMonth && e.date.slice(0,4) === new Date().getFullYear().toString())
   else if(mo) evs = evs.filter(e => e.date.startsWith('2026-'+mo))
@@ -2010,7 +2011,7 @@ function renderMeds(){
   const last30 = []
   for(let i=29;i>=0;i--){
     const d = new Date(Date.now()-i*24*60*60*1000)
-    last30.push(d.toISOString().slice(0,10))
+    last30.push(localDateStr(d))
   }
 
   document.getElementById('medsHistory').innerHTML = S.meds.map(med => {

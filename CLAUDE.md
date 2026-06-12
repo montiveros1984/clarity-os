@@ -7,6 +7,8 @@ Clarity OS is a personal life operating system built for Maria. It's a single-us
 **GitHub:** https://github.com/montiveros1984/clarity-os
 **Local file:** `C:\Users\maria\OneDrive\Documents\GitHub\clarity-os\dashboard.html`
 
+**Update FEATURES.md whenever a feature is added or changed.**
+
 ---
 
 ## Model Preference
