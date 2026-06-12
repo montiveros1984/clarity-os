@@ -43,9 +43,13 @@ Core table backed by the `events` table. Columns: drag handle, ✓ (checked), Da
 
 ### Sorting & balance logic
 - Events sort by `date` first (chronological), then `events.sort_order` as a same-date tiebreaker (drag-to-reorder only affects ordering within a single date), then by type (`start` < income/borrow < everything else).
-- Running balance is **computed dynamically at render time** — never stored per row. It's a top-to-bottom cumulative sum in display order, recalculated on every insert/edit/delete/reorder.
-- **Actual Balance** = sum of all `checked=true` events + the `start` event.
-- **Projected/Year-End Balance** = running total after the last event in the sorted list.
+- The ledger renders two groups, each in that date order: the cleared/paid group (checked items + `start`) first, then the pending/unpaid group.
+- Running balance is **computed dynamically at render time** — never stored per row — and walks rows in that exact render order, not the single date-sorted list of all events:
+  - Within the cleared group, it's a cumulative sum of cleared items in date order, ending at the **Cleared Balance** shown in the collapse header.
+  - The pending group's running balance continues from that Cleared Balance figure, adding each pending item's amount in date order. A past-dated pending item deducts from the Cleared Balance at the top of the pending section rather than showing an interleaved, out-of-context figure.
+  - Recalculated on every insert/edit/delete/reorder.
+- **Actual Balance** = sum of all `checked=true` events + the `start` event. (Equivalent to the Cleared Balance when no filters are applied.)
+- **Projected/Year-End Balance** = running total after the last event in the full date-sorted list (order-independent sum, unaffected by the render-order change above).
 - **Balance on date** (date picker in the ledger header) = anchor balance + sum of all transactions dated on or before the selected date (direct sum over `events`, independent of sort order).
 
 ### Toolbar

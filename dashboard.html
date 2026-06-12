@@ -1541,9 +1541,14 @@ function renderTimeline(){
     return
   }
 
-  // Separate checked vs unchecked
-  const checked   = evs.filter(e=>e.checked||e.type==='start')
-  const unchecked = evs.filter(e=>!e.checked&&e.type!=='start')
+  // Separate checked vs unchecked, and recompute running balance to match
+  // the actual render order: cleared group first (ending at the Cleared
+  // Balance shown in the collapse header), then the pending group
+  // continuing from that figure.
+  let run = 0
+  const checked   = evs.filter(e=>e.checked||e.type==='start').map(e=>{ run+=+e.amount; return{...e,running:run} })
+  const clearedBal = run
+  const unchecked = evs.filter(e=>!e.checked&&e.type!=='start').map(e=>{ run+=+e.amount; return{...e,running:run} })
 
   // Find today's position marker
   let rows = ''
@@ -1558,9 +1563,6 @@ function renderTimeline(){
     } else {
       const totalIn    = checked.filter(e=>e.amount>0&&e.type!=='start').reduce((s,e)=>s+(+e.amount),0)
       const totalOut   = checked.filter(e=>e.amount<0).reduce((s,e)=>s+(+e.amount),0)
-      // Find the running balance after the last cleared item
-      const lastCleared = eventsWithRunning().filter(e=>e.checked||e.type==='start').pop()
-      const clearedBal  = lastCleared ? lastCleared.running : 0
       const balColor    = clearedBal < 0 ? 'var(--coral)' : '#3ABCAA'
       rows += `<tr class="collapsed-row" onclick="toggleChecked()">
         <td colspan="7" style="padding:10px 14px;border-left:3px solid var(--border2)">
