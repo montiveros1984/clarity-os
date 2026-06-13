@@ -84,7 +84,8 @@ clarity-os/
 - Jump to Today button
 - Drag to reorder rows (sort_order column)
 - Filter by: label search, amount range, month, type, paid/unpaid
-- Calendar view (May–Dec 2026, navigable)
+- Forecast strip above the filter bar — Lowest Point (min pending running balance + date) and Next Income (next unchecked income/borrow on or after today), evenly split
+- Calendar view (navigable, defaults to current local month/year)
 - Weekly view with collapsible week groups
 - Bills manager — 24 recurring bills, organized by category, with notes
 - Goals tracker — progress bars, quick-save, notes, undo on delete

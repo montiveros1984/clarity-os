@@ -1083,7 +1083,7 @@ const S = {
   events:[], bills:[], categories:[], goals:[], staging:[], spendCats:[],
   meds:[], medLogs:[], incomeSources:[], paycheckTargetSource:null,
   undo:null, undoTimer:null,
-  calMonth:5, calYear:2026,
+  calMonth:new Date().getMonth()+1, calYear:new Date().getFullYear(),
   openWeeks:new Set(), activeTab:'home', showChecked:false,
   chartDrill: null, chartInstance: null
 }
@@ -1560,7 +1560,7 @@ function renderTimeline(){
 
   if(!evs.length){
     document.getElementById('timelineBody').innerHTML='<tr><td colspan="7" class="empty-state">No entries match filters</td></tr>'
-    renderForecastStrip(0, [], today)
+    renderForecastStrip([], today)
     return
   }
 
@@ -1614,12 +1614,10 @@ function renderTimeline(){
   }).join('')
 
   document.getElementById('timelineBody').innerHTML = rows
-  renderForecastStrip(clearedBal, unchecked, today)
+  renderForecastStrip(unchecked, today)
 }
 
-function renderForecastStrip(clearedBal, unchecked, today){
-  const clearedColor = clearedBal < 0 ? 'var(--coral)' : '#3ABCAA'
-
+function renderForecastStrip(unchecked, today){
   let lowestHtml
   if(unchecked.length){
     let lowest = unchecked[0]
@@ -1637,10 +1635,6 @@ function renderForecastStrip(clearedBal, unchecked, today){
     : '—'
 
   document.getElementById('forecastStrip').innerHTML = `
-    <div class="forecast-stat">
-      <div class="forecast-stat-label">Cleared</div>
-      <div class="forecast-stat-value" style="color:${clearedColor}">${fmt(clearedBal)}</div>
-    </div>
     <div class="forecast-stat">
       <div class="forecast-stat-label">Lowest Point</div>
       <div class="forecast-stat-value">${lowestHtml}</div>
