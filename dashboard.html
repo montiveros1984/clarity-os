@@ -296,6 +296,27 @@ tr.dragging{ opacity: 0.4; }
 .badge-purchase{ background: var(--blue-bg); color: var(--blue); }
 
 /* ─── FILTER BAR ─────────────────────────────── */
+/* ─── FORECAST STRIP ─────────────────────────── */
+.forecast-strip{
+  display: flex; gap: 12px; flex-wrap: wrap; margin-bottom: 16px;
+}
+.forecast-stat{
+  flex: 1; min-width: 180px;
+  background: rgba(255,255,255,0.78);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.9);
+  border-radius: var(--r);
+  box-shadow: 0 4px 20px rgba(180,120,150,0.10), inset 0 1px 0 rgba(255,255,255,0.95);
+  padding: 10px 16px;
+}
+.forecast-stat-label{ font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text3); margin-bottom: 4px; }
+.forecast-stat-value{ font-size: 15px; font-weight: 700; }
+@media (max-width: 640px){
+  .forecast-strip{ flex-direction: column; }
+  .forecast-stat{ min-width: 0; }
+}
+
 .filter-bar{ display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
 .filter-bar select, .filter-bar input[type=text], .filter-bar input[type=number]{
   background: var(--card); border: 1px solid var(--border2);
@@ -799,6 +820,7 @@ tr.dragging{ opacity: 0.4; }
         <button class="btn btn-primary btn-sm" onclick="openAddEvent()">+ Add Entry</button>
       </div>
     </div>
+    <div class="forecast-strip" id="forecastStrip"></div>
     <div class="filter-bar">
       <input type="text" id="fLabel" placeholder="Search label…" oninput="renderTimeline()">
       <input type="number" id="fAmtMin" placeholder="Min amount" step="0.01" oninput="renderTimeline()">
@@ -1538,6 +1560,7 @@ function renderTimeline(){
 
   if(!evs.length){
     document.getElementById('timelineBody').innerHTML='<tr><td colspan="7" class="empty-state">No entries match filters</td></tr>'
+    renderForecastStrip(0, [], today)
     return
   }
 
@@ -1591,6 +1614,42 @@ function renderTimeline(){
   }).join('')
 
   document.getElementById('timelineBody').innerHTML = rows
+  renderForecastStrip(clearedBal, unchecked, today)
+}
+
+function renderForecastStrip(clearedBal, unchecked, today){
+  const clearedColor = clearedBal < 0 ? 'var(--coral)' : '#3ABCAA'
+
+  let lowestHtml
+  if(unchecked.length){
+    let lowest = unchecked[0]
+    for(const e of unchecked) if(e.running < lowest.running) lowest = e
+    const lowColor = lowest.running < 0 ? 'var(--coral)' : '#3ABCAA'
+    const warn = lowest.running < 0 ? '⚠️ ' : ''
+    lowestHtml = `<span style="color:${lowColor};font-weight:700">${warn}${fmt(lowest.running)}</span> · ${fmtDate(lowest.date)}`
+  } else {
+    lowestHtml = '—'
+  }
+
+  const nextIncome = unchecked.find(e=>(e.type==='income'||e.type==='borrow')&&e.date>=today)
+  const nextIncomeHtml = nextIncome
+    ? `<span style="color:#3ABCAA;font-weight:700">${fmt(nextIncome.amount)}</span> · ${fmtDate(nextIncome.date)}`
+    : '—'
+
+  document.getElementById('forecastStrip').innerHTML = `
+    <div class="forecast-stat">
+      <div class="forecast-stat-label">Cleared</div>
+      <div class="forecast-stat-value" style="color:${clearedColor}">${fmt(clearedBal)}</div>
+    </div>
+    <div class="forecast-stat">
+      <div class="forecast-stat-label">Lowest Point</div>
+      <div class="forecast-stat-value">${lowestHtml}</div>
+    </div>
+    <div class="forecast-stat">
+      <div class="forecast-stat-label">Next Income</div>
+      <div class="forecast-stat-value">${nextIncomeHtml}</div>
+    </div>
+  `
 }
 
 function buildRow(e, today){

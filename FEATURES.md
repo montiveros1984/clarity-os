@@ -52,6 +52,12 @@ Core table backed by the `events` table. Columns: drag handle, ✓ (checked), Da
 - **Projected/Year-End Balance** = running total after the last event in the full date-sorted list (order-independent sum, unaffected by the render-order change above).
 - **Balance on date** (date picker in the ledger header) = anchor balance + sum of all transactions dated on or before the selected date (direct sum over `events`, independent of sort order).
 
+### Forecast strip
+Sits between the toolbar and filter bar; three stats side by side (stacked on mobile), recomputed on every `renderTimeline()` call from the same checked/unchecked running-balance chain (no separate calculation):
+- **Cleared** — the cleared balance (same figure as the collapse header), coral if negative.
+- **Lowest Point** — walks the pending (unchecked) running-balance chain in render order, shows the minimum value and its date (e.g. "−$280.13 · Jun 19"). Coral with ⚠️ if it goes below zero, green otherwise. Shows "—" if there are no pending items.
+- **Next Income** — the next unchecked `income`/`borrow` event dated today or later (amount and date), or "—" if none.
+
 ### Toolbar
 - **Balance on [date]** — date picker showing the computed balance as of that date.
 - **📍 Today** — clears filters, shows unpaid items, scrolls to the TODAY marker row.
