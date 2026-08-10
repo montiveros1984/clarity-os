@@ -62,18 +62,20 @@ clarity-os/
 - `events.bill_id` — links event to a bill template or income source ('elp', bill id, etc.)
 - `events.sort_order` — drag order, used only as a same-date tiebreaker (ledger always sorts by date first, then sort_order, then type)
 - `events.tx_category` — spending category tag
-- `events.checked` — marks as paid/received (affects Actual Balance)
+- `events.checked` — marks as paid/received (affects Cleared Balance)
+- `events.processing` — marks a pending (unchecked) event as "in progress" (see Ledger Processing State below)
 - `income_sources.frequency` — biweekly/weekly/monthly/semimonthly
 - `goals.in_cashflow` — whether the goal has a linked entry in the finance timeline (see Goals → "Include in Cash Flow" below)
 - `goals.cashflow_event_id` — id of the linked `events` row when `in_cashflow=true`, else null
 
 ### Pending manual migration (Supabase SQL editor)
-`in_cashflow` and `cashflow_event_id` on `goals` aren't provisioned yet — the app writes to them via the normal anon Supabase client, which can't run DDL, so they must be added once by hand:
+`in_cashflow` and `cashflow_event_id` on `goals`, and `processing` on `events`, aren't provisioned yet — the app writes to them via the normal anon Supabase client, which can't run DDL, so they must be added once by hand:
 ```sql
 ALTER TABLE goals ADD COLUMN IF NOT EXISTS in_cashflow boolean DEFAULT false;
 ALTER TABLE goals ADD COLUMN IF NOT EXISTS cashflow_event_id text;
+ALTER TABLE events ADD COLUMN IF NOT EXISTS processing boolean DEFAULT false;
 ```
-Until this runs, the "Include in Cash Flow" toggle writes fail silently (errors are logged to console, not shown to the user) and the toggle state won't persist across reloads.
+Until the goals columns run, the "Include in Cash Flow" toggle writes fail silently (errors are logged to console, not shown to the user) and the toggle state won't persist across reloads. Until the `events.processing` column runs, the ledger's "P" (processing) button writes fail silently the same way — the button will appear to toggle in the UI for the current session but won't persist across reloads.
 
 ---
 
@@ -91,7 +93,8 @@ Until this runs, the "Include in Cash Flow" toggle writes fail silently (errors 
 - Quick-entry sign toggle — +/− button right after Amount (defaults to −, flips on click/Space/Enter); Amount holds an unsigned magnitude and the toggle decides the sign, resetting to − after each save
 - Quick-entry duplicate warning — on Amount blur, flags a possible duplicate (same date, exact signed amount, label contains current label text, type not bill/critical) with an inline note below Amount; informational only, doesn't block save
 - Sticky ledger header — toolbar row, forecast strip, filter bar, and quick-entry bar are wrapped in a sticky container (`#timelineStickyHdr`) that pins below the global topbar (offset synced to the topbar's live height via a `--topbar-h` CSS var, so it doesn't overlap the balance chips) while the ledger table scrolls underneath
-- Actual balance (checked items) vs Projected year-end balance
+- Cleared balance (checked items) vs Actual balance (cleared + processing) vs Projected year-end balance — three topbar chips in that order
+- Ledger Processing state — a small "P" button next to edit/delete on each pending (unchecked) row toggles `events.processing`; the ledger renders three groups top to bottom — Cleared (collapsible, unchanged) → a "Processing" divider row → Processing items → TODAY marker → Pending items — and the running balance chain walks through all three groups in that order. Checking an event's main checkbox (moving it to Cleared) automatically clears its `processing` flag.
 - Income sorts before expenses on same day
 - Going negative highlights in coral with ⚠️ warning
 - Collapse paid/cleared items into summary bar with carry-forward balance
@@ -104,7 +107,7 @@ Until this runs, the "Include in Cash Flow" toggle writes fail silently (errors 
 - Calendar view (navigable, defaults to current local month/year)
 - Weekly view with collapsible week groups
 - Bills manager — 24 recurring bills, organized by category, with notes
-- Goals tracker — progress bars, quick-save, notes, undo on delete
+- Goals tracker — progress bars, quick-save, notes, undo on delete; goal cards sort by due date ascending, goals with no due date sort last
 - Goals → "Include in Cash Flow" toggle — per-goal toggle on each goal card; disabled (grayed out, with a "Set a due date to include in cash flow" note) when the goal has no due date. Toggling on creates a single `events` row (date = goal due date, label = goal name, amount = -(target − saved), type `extra`, category `Goals`) and stores its id on `goals.cashflow_event_id`; toggling off deletes that event and clears the id. Editing a toggled-on goal's saved amount or due date updates the linked event in place (via `syncGoalCashflow`) instead of creating a duplicate; clearing the due date while toggled on auto-disables the toggle and removes the event.
 - Income tab — current income sources (ELP) + projected staging
 - Paycheck estimator — federal + CA taxes, W-4 dependent credit, HOH/Single
@@ -197,13 +200,15 @@ SUPA_KEY        = [see Supabase project — anon public key]
 ## Key Business Logic
 
 ### Balance Calculation
-- **Actual Balance** = sum of all events where `checked=true` OR `type='start'`
-- **Projected Balance** = running sum of ALL events sorted by date
-- **Running Balance** column = cumulative sum as you scroll through sorted events
+- **Cleared Balance** = sum of all events where `checked=true` OR `type='start'`
+- **Actual Balance** = Cleared Balance + sum of unchecked events where `processing=true`
+- **Projected Balance** (Year-End) = running sum of ALL events sorted by date (checked, processing, and pending alike) — unchanged by the processing state
+- **Running Balance** column = cumulative sum as you scroll through sorted events; in the ledger it's computed by walking Cleared → Processing → Pending in that order, so the figure at the bottom of each group carries into the next
 
 ### Event Sort Order
 1. If `sort_order > 0`: sort by sort_order (user-defined via drag)
 2. Otherwise: sort by date, then income/borrow before expenses on same day
+3. In the ledger specifically, events are also grouped by state (Cleared → Processing → Pending) before the above ordering is applied within each group
 
 ### Bill Updates
 - Editing a bill updates all future **unchecked** events with matching `bill_id`

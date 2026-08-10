@@ -152,8 +152,10 @@ body::before{
 }
 .bal-chip .lbl{ font-size: 10px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--text3); }
 .bal-chip .val{ font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; letter-spacing: -0.01em; }
+.bal-chip.cleared .val{ color: var(--text2); }
 .bal-chip.actual .val{ color: var(--coral); }
 .bal-chip.projected .val{ color: var(--teal); }
+.divider-row td{ padding: 6px 14px; background: var(--gold-bg); border-left: 3px solid var(--gold); font-size: 11px; color: var(--gold); font-weight: 600; letter-spacing: 0.05em; text-transform: uppercase; }
 .hdr-btn{
   background: var(--pink-bg); border: 1px solid var(--border2);
   border-radius: var(--r-sm); color: var(--pink);
@@ -215,6 +217,9 @@ body::before{
 }
 .icon-btn:hover{ background: var(--bg2); color: var(--text); }
 .icon-btn.del:hover{ background: var(--coral-bg); color: var(--coral); }
+.icon-btn.proc{ font-weight: 700; font-size: 11px; }
+.icon-btn.proc:hover{ background: var(--gold-bg); color: var(--gold); }
+.icon-btn.proc.active{ background: var(--gold-bg); color: var(--gold); }
 
 /* ─── SECTION HEADER ─────────────────────────── */
 .sec-hdr{ display: flex; align-items: center; justify-content: space-between; margin-bottom: 18px; flex-wrap: wrap; gap: 10px; }
@@ -851,8 +856,12 @@ tr.dragging{ opacity: 0.4; }
 <div class="topbar">
   <div class="topbar-title" id="pageTitle">Home</div>
   <div class="bal-group">
+    <div class="bal-chip cleared">
+      <span class="lbl">Cleared</span>
+      <span class="val" id="clearedBalChip">—</span>
+    </div>
     <div class="bal-chip actual">
-      <span class="lbl">Actual Balance</span>
+      <span class="lbl">Actual</span>
       <span class="val" id="actualBal">—</span>
     </div>
     <div class="bal-chip projected">
@@ -1226,7 +1235,10 @@ function eventsWithRunning(){
   let running=0
   return sortedEvents().map(e=>{ running+=+e.amount; return{...e,running} })
 }
-function actualBalance(){ return S.events.filter(e=>e.checked||e.type==='start').reduce((s,e)=>s+(+e.amount),0) }
+function clearedBalance(){ return S.events.filter(e=>e.checked||e.type==='start').reduce((s,e)=>s+(+e.amount),0) }
+function actualBalance(){ return clearedBalance() }
+function processingBalance(){ return S.events.filter(e=>!e.checked&&e.type!=='start'&&e.processing).reduce((s,e)=>s+(+e.amount),0) }
+function trueActualBalance(){ return clearedBalance()+processingBalance() }
 function projectedBalance(){ const evs=eventsWithRunning(); return evs.length?evs[evs.length-1].running:0 }
 function balanceOnDate(d){
   // Anchor balance + sum of all transactions dated on or before d
@@ -1235,8 +1247,9 @@ function balanceOnDate(d){
     .reduce((s,e)=>s+(+e.amount),0)
 }
 function updateBalDisplay(){
-  document.getElementById('actualBal').textContent    = fmt(actualBalance())
-  document.getElementById('projectedBal').textContent = fmt(projectedBalance())
+  document.getElementById('clearedBalChip').textContent = fmt(clearedBalance())
+  document.getElementById('actualBal').textContent      = fmt(trueActualBalance())
+  document.getElementById('projectedBal').textContent   = fmt(projectedBalance())
 }
 
 // ═══════════════════════════════════════════════
@@ -1268,7 +1281,12 @@ async function loadAll(){
 async function insertEvent(ev){ const r=await dbIns('events',ev); if(r)S.events.push(r); updateBalDisplay(); return r }
 async function updateEvent(id,ch){ await dbUpd('events',id,ch); const i=S.events.findIndex(e=>e.id===id); if(i>=0)S.events[i]={...S.events[i],...ch}; updateBalDisplay() }
 async function deleteEvent(id){ await dbDel('events',id); S.events=S.events.filter(e=>e.id!==id); updateBalDisplay() }
-async function toggleCheck(id){ const ev=S.events.find(e=>e.id===id); if(ev) await updateEvent(id,{checked:!ev.checked}) }
+async function toggleCheck(id){
+  const ev=S.events.find(e=>e.id===id); if(!ev) return
+  const checked=!ev.checked
+  await updateEvent(id, checked?{checked,processing:false}:{checked})
+}
+async function toggleProcessing(id){ const ev=S.events.find(e=>e.id===id); if(ev) await updateEvent(id,{processing:!ev.processing}) }
 
 async function insertBill(b){ const r=await dbIns('bills',b); if(r)S.bills.push(r); return r }
 async function updateBill(id,ch){ await dbUpd('bills',id,ch); const i=S.bills.findIndex(b=>b.id===id); if(i>=0)S.bills[i]={...S.bills[i],...ch} }
@@ -1655,14 +1673,16 @@ function renderTimeline(){
     return
   }
 
-  // Separate checked vs unchecked, and recompute running balance to match
-  // the actual render order: cleared group first (ending at the Cleared
-  // Balance shown in the collapse header), then the pending group
-  // continuing from that figure.
+  // Separate cleared / processing / pending, and recompute running balance
+  // to match the actual render order: cleared group first (ending at the
+  // Cleared Balance shown in the collapse header), then processing, then
+  // pending — each continuing the running total from the group before it.
   let run = 0
-  const checked   = evs.filter(e=>e.checked||e.type==='start').map(e=>{ run+=+e.amount; return{...e,running:run} })
+  const checked    = evs.filter(e=>e.checked||e.type==='start').map(e=>{ run+=+e.amount; return{...e,running:run} })
   const clearedBal = run
-  const unchecked = evs.filter(e=>!e.checked&&e.type!=='start').map(e=>{ run+=+e.amount; return{...e,running:run} })
+  const processing = evs.filter(e=>!e.checked&&e.type!=='start'&&e.processing).map(e=>{ run+=+e.amount; return{...e,running:run} })
+  const pending    = evs.filter(e=>!e.checked&&e.type!=='start'&&!e.processing).map(e=>{ run+=+e.amount; return{...e,running:run} })
+  const unchecked  = [...processing, ...pending]
 
   // Find today's position marker
   let rows = ''
@@ -1690,13 +1710,17 @@ function renderTimeline(){
     }
   }
 
-  // Today marker
-  const hasToday = unchecked.some(e=>e.date===today)
-  const firstUpcoming = unchecked.find(e=>e.date>=today)
+  // Processing divider + group
+  rows += `<tr class="divider-row"><td colspan="7">Processing</td></tr>`
+  rows += processing.map(e=>buildRow(e, today)).join('')
 
-  rows += unchecked.map((e,i)=>{
+  // Today marker (sits before the pending group only)
+  const hasToday = pending.some(e=>e.date===today)
+  const firstUpcoming = pending.find(e=>e.date>=today)
+
+  rows += pending.map((e,i)=>{
     let marker = ''
-    if(e.date===today&&i===unchecked.findIndex(x=>x.date===today)){
+    if(e.date===today&&i===pending.findIndex(x=>x.date===today)){
       marker = `<tr id="today-row"><td colspan="7" style="padding:4px 14px;background:var(--pink-bg);border-left:3px solid var(--pink);font-size:11px;color:var(--pink);font-weight:600;letter-spacing:0.05em">TODAY — ${today}</td></tr>`
     } else if(!hasToday&&firstUpcoming?.id===e.id){
       marker = `<tr id="today-row"><td colspan="7" style="padding:4px 14px;background:var(--pink-bg);border-left:3px solid var(--pink);font-size:11px;color:var(--pink);font-weight:600;letter-spacing:0.05em">UPCOMING</td></tr>`
@@ -1757,6 +1781,7 @@ function buildRow(e, today){
       ${isNegBal?'⚠️ ':''}${fmt(e.running)}
     </td>
     <td>
+      ${!isPaid?`<button class="icon-btn proc${e.processing?' active':''}" onclick="toggleProcessing('${e.id}').then(renderTimeline)" title="${e.processing?'Unmark processing':'Mark processing'}">P</button>`:''}
       <button class="icon-btn" onclick="openEditEvent('${e.id}')" title="Edit">✏️</button>
       <button class="icon-btn del" onclick="confirmDeleteEvent('${e.id}')" title="Delete">🗑️</button>
     </td>
@@ -1917,7 +1942,13 @@ function renderGoals(){
     </div>
     <div class="prog-track"><div class="prog-fill${done===total&&total>0?' done':''}" style="width:${pct}%"></div></div>
     <div class="prog-labels"><span>${pct}%</span><span>${done}/${total} goals</span></div>`
-  document.getElementById('goalsList').innerHTML=S.goals.map(g=>{
+  const sortedGoals=[...S.goals].sort((a,b)=>{
+    if(!a.due_date&&!b.due_date) return 0
+    if(!a.due_date) return 1
+    if(!b.due_date) return -1
+    return a.due_date.localeCompare(b.due_date)
+  })
+  document.getElementById('goalsList').innerHTML=sortedGoals.map(g=>{
     const p=g.target>0?Math.min(100,Math.round(g.saved/g.target*100)):0
     const rem=Math.max(0,g.target-g.saved)
     return `<div class="goal-card${g.done?' done-card':''}">
