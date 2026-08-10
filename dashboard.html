@@ -394,6 +394,15 @@ tr.dragging{ opacity: 0.4; }
   transition: all 0.15s;
 }
 .qe-sign.positive{ background: var(--pink-bg); color: var(--pink); }
+.qe-status{
+  flex-shrink: 0; width: 34px; padding: 7px 0; align-self: stretch;
+  border-radius: var(--r-sm); border: 1px solid var(--border2);
+  font-size: 13px; font-weight: 700; cursor: pointer;
+  background: var(--card); color: var(--text3); box-shadow: var(--shadow);
+  transition: all 0.15s;
+}
+.qe-status-proc.active{ background: var(--gold-bg); color: var(--gold); border-color: var(--gold); }
+.qe-status-cleared.active{ background: var(--teal-bg); color: var(--teal); border-color: var(--teal); }
 @media (max-width: 640px){
   .quick-entry-bar{ flex-direction: column; align-items: stretch; }
   .qe-date, .qe-amount-wrap{ width: 100%; }
@@ -951,6 +960,8 @@ tr.dragging{ opacity: 0.4; }
           oninput="qeFilter('cat',event)" onfocus="qeOpen('cat')" onkeydown="qeKeydown(event,'cat')" onblur="qeBlur('cat')">
         <div class="qe-dropdown" id="qeCatDropdown"></div>
       </div>
+      <button type="button" id="qeProcBtn" class="qe-status qe-status-proc" onclick="qeToggleStatus('processing')" title="Mark as processing">P</button>
+      <button type="button" id="qeClearedBtn" class="qe-status qe-status-cleared" onclick="qeToggleStatus('cleared')" title="Mark as cleared">✓</button>
       <button class="btn btn-primary btn-sm" id="qeSaveBtn" onclick="qeSubmit()">Save</button>
     </div>
     </div>
@@ -2988,6 +2999,20 @@ function qeHandleEnter(e,field){
   else if(field==='amount') document.getElementById('qeType').focus()
 }
 
+function qeToggleStatus(kind){
+  const procBtn=document.getElementById('qeProcBtn')
+  const clrBtn=document.getElementById('qeClearedBtn')
+  if(!procBtn||!clrBtn) return
+  if(kind==='processing'){
+    const nowActive=!procBtn.classList.contains('active')
+    procBtn.classList.toggle('active',nowActive)
+    if(nowActive) clrBtn.classList.remove('active')
+  } else {
+    const nowActive=!clrBtn.classList.contains('active')
+    clrBtn.classList.toggle('active',nowActive)
+    if(nowActive) procBtn.classList.remove('active')
+  }
+}
 function qeToggleSign(){
   const btn=document.getElementById('qeSign')
   if(!btn) return
@@ -3059,7 +3084,8 @@ async function qeSubmit(){
     type:document.getElementById('qeType').value,
     tx_category: qeNeedsCat() ? document.getElementById('qeCat').value : '',
     bill_id:null,
-    checked:false
+    checked:document.getElementById('qeClearedBtn')?.classList.contains('active')||false,
+    processing:document.getElementById('qeProcBtn')?.classList.contains('active')||false
   }
   await insertEvent(ev)
   qeBuildLabelCache()
@@ -3070,6 +3096,8 @@ async function qeSubmit(){
   document.getElementById('qeCat').value=''
   const signBtn=document.getElementById('qeSign')
   if(signBtn){ signBtn.textContent='−'; signBtn.classList.remove('positive') }
+  document.getElementById('qeProcBtn')?.classList.remove('active')
+  document.getElementById('qeClearedBtn')?.classList.remove('active')
   qeClearDupWarning()
   renderCurrent()
   document.getElementById('qeLabel').focus()
