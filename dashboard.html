@@ -408,6 +408,7 @@ tr.dragging{ opacity: 0.4; }
 .toggle-track:before{ content:''; position:absolute; height:15px; width:15px; left:3px; bottom:3px; background:#ccc; border-radius:50%; transition:0.2s; box-shadow:0 1px 3px rgba(0,0,0,0.2); }
 .toggle input:checked + .toggle-track{ background: var(--pink); }
 .toggle input:checked + .toggle-track:before{ transform: translateX(17px); background:#fff; }
+.toggle input:disabled + .toggle-track{ opacity: 0.45; cursor: not-allowed; }
 
 /* ─── CALENDAR ───────────────────────────────── */
 .cal-nav-row{ display: flex; align-items: center; gap: 12px; margin-bottom: 18px; }
@@ -1937,6 +1938,16 @@ function renderGoals(){
         <input type="number" id="qs${g.id}" placeholder="Update saved amount" step="0.01">
         <button class="btn btn-teal btn-sm" onclick="quickSave('${g.id}')">Save</button>
       </div>
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding-top:10px;border-top:1px solid var(--border2)">
+        <div>
+          <div style="font-size:12px;font-weight:600;color:var(--text2)">Include in Cash Flow</div>
+          ${!g.due_date?'<div style="font-size:11px;color:var(--text3);margin-top:2px">Set a due date to include in cash flow.</div>':''}
+        </div>
+        <label class="toggle" title="${!g.due_date?'Set a due date to include in cash flow.':'Include in Cash Flow'}">
+          <input type="checkbox" ${g.in_cashflow?'checked':''} ${!g.due_date?'disabled':''} onchange="toggleGoalCashflow('${g.id}',this.checked)">
+          <span class="toggle-track"></span>
+        </label>
+      </div>
       <textarea id="gnote${g.id}" placeholder="Add a note…" rows="2"
         style="width:100%;margin-top:10px;background:var(--bg2);border:1px solid var(--border2);border-radius:var(--r-sm);color:var(--text);padding:8px 10px;font-size:12px;resize:vertical;font-family:inherit;color:var(--text2)"
         onblur="saveGoalNote('${g.id}')">${esc(g.notes||'')}</textarea>
@@ -1945,7 +1956,31 @@ function renderGoals(){
 }
 async function quickSave(id){
   const v=parseFloat(document.getElementById('qs'+id).value); if(isNaN(v)) return
-  await updateGoal(id,{saved:v}); renderGoals()
+  await updateGoal(id,{saved:v}); await syncGoalCashflow(id); renderGoals()
+}
+// Keep the linked cash-flow event (if any) in sync with a goal's saved amount / due date
+async function syncGoalCashflow(id){
+  const g=S.goals.find(g=>g.id===id); if(!g||!g.in_cashflow||!g.cashflow_event_id) return
+  if(!g.due_date){
+    await deleteEvent(g.cashflow_event_id)
+    await updateGoal(id,{in_cashflow:false,cashflow_event_id:null})
+    return
+  }
+  const rem=Math.max(0,(+g.target||0)-(+g.saved||0))
+  await updateEvent(g.cashflow_event_id,{amount:-rem,date:g.due_date})
+}
+async function toggleGoalCashflow(id,on){
+  const g=S.goals.find(g=>g.id===id); if(!g||!g.due_date) return
+  if(on){
+    const rem=Math.max(0,(+g.target||0)-(+g.saved||0))
+    const ev={id:uid(),date:g.due_date,label:g.label,amount:-rem,type:'extra',tx_category:'Goals',bill_id:null,checked:false}
+    const r=await insertEvent(ev)
+    if(r) await updateGoal(id,{in_cashflow:true,cashflow_event_id:r.id})
+  }else{
+    if(g.cashflow_event_id) await deleteEvent(g.cashflow_event_id)
+    await updateGoal(id,{in_cashflow:false,cashflow_event_id:null})
+  }
+  renderGoals()
 }
 
 // ═══════════════════════════════════════════════
@@ -3121,7 +3156,7 @@ async function saveAddGoal(){
 }
 async function saveEditGoal(id){
   const ch={label:document.getElementById('glLabel').value.trim(),target:parseFloat(document.getElementById('glTarget').value),saved:parseFloat(document.getElementById('glSaved').value)||0,due_date:document.getElementById('glDue').value||null,notes:document.getElementById('glNotes').value.trim()}
-  await updateGoal(id,ch); closeModal(); renderGoals()
+  await updateGoal(id,ch); await syncGoalCashflow(id); closeModal(); renderGoals()
 }
 async function saveGoalNote(id){
   const notes=document.getElementById('gnote'+id)?.value||''

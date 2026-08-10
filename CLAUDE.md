@@ -64,6 +64,16 @@ clarity-os/
 - `events.tx_category` — spending category tag
 - `events.checked` — marks as paid/received (affects Actual Balance)
 - `income_sources.frequency` — biweekly/weekly/monthly/semimonthly
+- `goals.in_cashflow` — whether the goal has a linked entry in the finance timeline (see Goals → "Include in Cash Flow" below)
+- `goals.cashflow_event_id` — id of the linked `events` row when `in_cashflow=true`, else null
+
+### Pending manual migration (Supabase SQL editor)
+`in_cashflow` and `cashflow_event_id` on `goals` aren't provisioned yet — the app writes to them via the normal anon Supabase client, which can't run DDL, so they must be added once by hand:
+```sql
+ALTER TABLE goals ADD COLUMN IF NOT EXISTS in_cashflow boolean DEFAULT false;
+ALTER TABLE goals ADD COLUMN IF NOT EXISTS cashflow_event_id text;
+```
+Until this runs, the "Include in Cash Flow" toggle writes fail silently (errors are logged to console, not shown to the user) and the toggle state won't persist across reloads.
 
 ---
 
@@ -95,6 +105,7 @@ clarity-os/
 - Weekly view with collapsible week groups
 - Bills manager — 24 recurring bills, organized by category, with notes
 - Goals tracker — progress bars, quick-save, notes, undo on delete
+- Goals → "Include in Cash Flow" toggle — per-goal toggle on each goal card; disabled (grayed out, with a "Set a due date to include in cash flow" note) when the goal has no due date. Toggling on creates a single `events` row (date = goal due date, label = goal name, amount = -(target − saved), type `extra`, category `Goals`) and stores its id on `goals.cashflow_event_id`; toggling off deletes that event and clears the id. Editing a toggled-on goal's saved amount or due date updates the linked event in place (via `syncGoalCashflow`) instead of creating a duplicate; clearing the due date while toggled on auto-disables the toggle and removes the event.
 - Income tab — current income sources (ELP) + projected staging
 - Paycheck estimator — federal + CA taxes, W-4 dependent credit, HOH/Single
 - Spending analysis tab — pie chart with drill-down, YTD filter
