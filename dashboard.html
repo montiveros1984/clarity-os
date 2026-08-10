@@ -1656,33 +1656,43 @@ function renderTimeline(){
   const amtMax = parseFloat(document.getElementById('fAmtMax').value)
   const amtEq  = parseFloat(document.getElementById('fAmt').value)
   const today  = todayStr()
-  let evs = eventsWithRunning()
 
-  if(mo)             evs=evs.filter(e=>e.date.startsWith('2026-'+mo))
-  if(type)           evs=evs.filter(e=>e.type===type)
-  if(paid==='paid')  evs=evs.filter(e=>e.checked||e.type==='start')
-  if(paid==='unpaid')evs=evs.filter(e=>!e.checked&&e.type!=='start')
-  if(label)          evs=evs.filter(e=>e.label.toLowerCase().includes(label))
-  if(!isNaN(amtMin)) evs=evs.filter(e=>Math.abs(e.amount)>=amtMin)
-  if(!isNaN(amtMax)) evs=evs.filter(e=>Math.abs(e.amount)<=amtMax)
-  if(!isNaN(amtEq))  evs=evs.filter(e=>Math.abs(+e.amount)===Math.abs(amtEq))
+  // Compute running balance from the FULL unfiltered ledger, in the same
+  // group order it renders in (Cleared -> Processing -> Pending), so that
+  // filters only hide rows for display — they never change what balance
+  // each remaining row reports.
+  const allEvs = sortedEvents()
+  let run = 0
+  const fullChecked    = allEvs.filter(e=>e.checked||e.type==='start').map(e=>{ run+=+e.amount; return{...e,running:run} })
+  const clearedBal     = run
+  const fullProcessing = allEvs.filter(e=>!e.checked&&e.type!=='start'&&e.processing).map(e=>{ run+=+e.amount; return{...e,running:run} })
+  const fullPending    = allEvs.filter(e=>!e.checked&&e.type!=='start'&&!e.processing).map(e=>{ run+=+e.amount; return{...e,running:run} })
 
-  if(!evs.length){
+  const applyFilters = list => {
+    let out = list
+    if(mo)             out=out.filter(e=>e.date.startsWith('2026-'+mo))
+    if(type)           out=out.filter(e=>e.type===type)
+    if(paid==='paid')  out=out.filter(e=>e.checked||e.type==='start')
+    if(paid==='unpaid')out=out.filter(e=>!e.checked&&e.type!=='start')
+    if(label)          out=out.filter(e=>e.label.toLowerCase().includes(label))
+    if(!isNaN(amtMin)) out=out.filter(e=>Math.abs(e.amount)>=amtMin)
+    if(!isNaN(amtMax)) out=out.filter(e=>Math.abs(e.amount)<=amtMax)
+    if(!isNaN(amtEq))  out=out.filter(e=>Math.abs(+e.amount)===Math.abs(amtEq))
+    return out
+  }
+
+  // Each row keeps the .running value computed above from the full ledger —
+  // filtering only decides which rows are visible, never recomputes balance.
+  const checked    = applyFilters(fullChecked)
+  const processing = applyFilters(fullProcessing)
+  const pending    = applyFilters(fullPending)
+  const unchecked  = [...processing, ...pending]
+
+  if(!checked.length && !processing.length && !pending.length){
     document.getElementById('timelineBody').innerHTML='<tr><td colspan="7" class="empty-state">No entries match filters</td></tr>'
     renderForecastStrip([], today)
     return
   }
-
-  // Separate cleared / processing / pending, and recompute running balance
-  // to match the actual render order: cleared group first (ending at the
-  // Cleared Balance shown in the collapse header), then processing, then
-  // pending — each continuing the running total from the group before it.
-  let run = 0
-  const checked    = evs.filter(e=>e.checked||e.type==='start').map(e=>{ run+=+e.amount; return{...e,running:run} })
-  const clearedBal = run
-  const processing = evs.filter(e=>!e.checked&&e.type!=='start'&&e.processing).map(e=>{ run+=+e.amount; return{...e,running:run} })
-  const pending    = evs.filter(e=>!e.checked&&e.type!=='start'&&!e.processing).map(e=>{ run+=+e.amount; return{...e,running:run} })
-  const unchecked  = [...processing, ...pending]
 
   // Find today's position marker
   let rows = ''
