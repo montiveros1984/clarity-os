@@ -75,8 +75,9 @@ clarity-os/
 - "Balance on date" = anchor balance + sum of all transactions on/before the selected date
 - Amount filter (exact match on absolute value) alongside label/min/max/month/type/paid filters
 - Add/Edit Entry form requires date, name, amount (nonzero), and category (when applicable) — invalid fields highlight in coral and block save
-- Quick-entry bar — persistent inline row (Date, Label, Amount, Type, Category, Save) between the filter bar and ledger table; Type/Category use an inline autocomplete dropdown that opens upward (above the field, not over the ledger); reuses the same insert function as the Add Entry modal
-- Quick-entry duplicate warning — on Amount blur, flags a possible duplicate (same date, exact amount, label contains current label text, type not bill/critical) with an inline note below Amount; informational only, doesn't block save
+- Quick-entry bar — persistent inline row (Date, Label, Amount, +/− sign, Type, Category, Save) between the filter bar and ledger table; Type/Category use an inline autocomplete dropdown that opens upward (above the field, not over the ledger) and inline-completes the typed text (e.g. "fo" → "Food & Dining" with "od & Dining" pre-selected so Tab accepts it); reuses the same insert function as the Add Entry modal
+- Quick-entry sign toggle — +/− button right after Amount (defaults to −, flips on click/Space/Enter); Amount holds an unsigned magnitude and the toggle decides the sign, resetting to − after each save
+- Quick-entry duplicate warning — on Amount blur, flags a possible duplicate (same date, exact signed amount, label contains current label text, type not bill/critical) with an inline note below Amount; informational only, doesn't block save
 - Actual balance (checked items) vs Projected year-end balance
 - Income sorts before expenses on same day
 - Going negative highlights in coral with ⚠️ warning

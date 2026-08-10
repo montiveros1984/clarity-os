@@ -373,6 +373,14 @@ tr.dragging{ opacity: 0.4; }
   border-radius: var(--r-sm); padding: 6px 10px; font-size: 12px; color: var(--coral);
   box-shadow: 0 4px 14px rgba(180,120,150,0.15); z-index: 35; white-space: nowrap;
 }
+.qe-sign{
+  flex-shrink: 0; width: 34px; padding: 7px 0; align-self: stretch;
+  border-radius: var(--r-sm); border: 1px solid var(--border2);
+  font-size: 15px; font-weight: 700; cursor: pointer;
+  background: var(--coral-bg); color: var(--coral); box-shadow: var(--shadow);
+  transition: all 0.15s;
+}
+.qe-sign.positive{ background: var(--pink-bg); color: var(--pink); }
 @media (max-width: 640px){
   .quick-entry-bar{ flex-direction: column; align-items: stretch; }
   .qe-date, .qe-amount-wrap{ width: 100%; }
@@ -909,14 +917,15 @@ tr.dragging{ opacity: 0.4; }
         <input type="number" id="qeAmount" class="qe-input qe-amount" placeholder="Amount" step="0.01" oninput="this.classList.remove('invalid'); qeClearDupWarning()" onblur="qeCheckDuplicate()" onkeydown="qeHandleEnter(event,'amount')">
         <div class="qe-dup-warning" id="qeDupWarning"></div>
       </div>
+      <button type="button" id="qeSign" class="qe-sign" onclick="qeToggleSign()">−</button>
       <div class="qe-autocomplete" id="qeTypeWrap">
         <input type="text" id="qeType" class="qe-input qe-type" placeholder="Type" autocomplete="off"
-          oninput="qeFilter('type')" onfocus="qeOpen('type')" onkeydown="qeKeydown(event,'type')" onblur="qeBlur('type')">
+          oninput="qeFilter('type',event)" onfocus="qeOpen('type')" onkeydown="qeKeydown(event,'type')" onblur="qeBlur('type')">
         <div class="qe-dropdown" id="qeTypeDropdown"></div>
       </div>
       <div class="qe-autocomplete" id="qeCatWrap">
         <input type="text" id="qeCat" class="qe-input qe-cat" placeholder="Category" autocomplete="off"
-          oninput="qeFilter('cat')" onfocus="qeOpen('cat')" onkeydown="qeKeydown(event,'cat')" onblur="qeBlur('cat')">
+          oninput="qeFilter('cat',event)" onfocus="qeOpen('cat')" onkeydown="qeKeydown(event,'cat')" onblur="qeBlur('cat')">
         <div class="qe-dropdown" id="qeCatDropdown"></div>
       </div>
       <button class="btn btn-primary btn-sm" id="qeSaveBtn" onclick="qeSubmit()">Save</button>
@@ -2754,10 +2763,24 @@ function qeFilteredOpts(field){
 }
 
 function qeOpen(field){ qeHighlight[field]=-1; qeRenderDropdown(field) }
-function qeFilter(field){
-  qeFieldEl(field).classList.remove('invalid')
+function qeFilter(field,e){
+  const el=qeFieldEl(field)
+  el.classList.remove('invalid')
   qeHighlight[field]=-1
   qeRenderDropdown(field)
+  const isDeleting = e && /delete/i.test(e.inputType||'')
+  if(!isDeleting) qeInlineComplete(field)
+}
+function qeInlineComplete(field){
+  const el=qeFieldEl(field)
+  const typed=el.value
+  if(!typed) return
+  if(el.selectionStart!==typed.length || el.selectionEnd!==typed.length) return
+  const lower=typed.toLowerCase()
+  const match=qeOptionsFor(field).find(o=>o.length>typed.length && o.toLowerCase().startsWith(lower))
+  if(!match) return
+  el.value=match
+  el.setSelectionRange(typed.length,match.length)
 }
 function qeRenderDropdown(field){
   const dd=qeDropdownEl(field)
@@ -2818,6 +2841,19 @@ function qeHandleEnter(e,field){
   else if(field==='amount') document.getElementById('qeType').focus()
 }
 
+function qeToggleSign(){
+  const btn=document.getElementById('qeSign')
+  if(!btn) return
+  const isNeg=btn.textContent==='−'
+  btn.textContent=isNeg?'+':'−'
+  btn.classList.toggle('positive',isNeg)
+  qeCheckDuplicate()
+}
+function qeSignedAmount(){
+  const raw=Math.abs(parseFloat(document.getElementById('qeAmount').value)||0)
+  const isNeg=document.getElementById('qeSign')?.textContent!=='+'
+  return isNeg?-raw:raw
+}
 function qeClearDupWarning(){
   const warnEl=document.getElementById('qeDupWarning')
   if(!warnEl) return
@@ -2828,8 +2864,8 @@ function qeCheckDuplicate(){
   const date=document.getElementById('qeDate').value
   const label=document.getElementById('qeLabel').value.trim().toLowerCase()
   const amtVal=document.getElementById('qeAmount').value
-  const amt=parseFloat(amtVal)
-  if(!warnEl || !date || amtVal===''||isNaN(amt)){ qeClearDupWarning(); return }
+  if(!warnEl || !date || amtVal===''||isNaN(parseFloat(amtVal))){ qeClearDupWarning(); return }
+  const amt=qeSignedAmount()
   const match=S.events.find(e=>
     e.date===date &&
     +e.amount===amt &&
@@ -2872,7 +2908,7 @@ async function qeSubmit(){
     id:uid(),
     date:document.getElementById('qeDate').value,
     label:document.getElementById('qeLabel').value.trim(),
-    amount:parseFloat(document.getElementById('qeAmount').value),
+    amount:qeSignedAmount(),
     type:document.getElementById('qeType').value,
     tx_category: qeNeedsCat() ? document.getElementById('qeCat').value : '',
     bill_id:null,
@@ -2883,6 +2919,8 @@ async function qeSubmit(){
   document.getElementById('qeAmount').value=''
   document.getElementById('qeType').value=''
   document.getElementById('qeCat').value=''
+  const signBtn=document.getElementById('qeSign')
+  if(signBtn){ signBtn.textContent='−'; signBtn.classList.remove('positive') }
   qeClearDupWarning()
   renderCurrent()
   document.getElementById('qeLabel').focus()
