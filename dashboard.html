@@ -1812,6 +1812,9 @@ function buildRow(e, today){
 // ═══════════════════════════════════════════════
 // CALENDAR
 // ═══════════════════════════════════════════════
+function calVisible(e){
+  return ['income','bill','critical','borrow'].includes(e.type) || e.checked || e.processing
+}
 function renderCalendar(){
   const {calYear:y,calMonth:m}=S
   const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December']
@@ -1820,7 +1823,7 @@ function renderCalendar(){
   const days=lastDay(y,m)
   const todayS=todayStr()
   const byDate={}
-  S.events.forEach(e=>{ (byDate[e.date]=byDate[e.date]||[]).push(e) })
+  S.events.filter(calVisible).forEach(e=>{ (byDate[e.date]=byDate[e.date]||[]).push(e) })
   const DOWS=['Sun','Mon','Tue','Wed','Thu','Fri','Sat']
   let html=DOWS.map(d=>`<div class="cal-dow">${d}</div>`).join('')
   for(let i=0;i<firstDow;i++) html+='<div class="cal-day other-month"></div>'
@@ -1846,7 +1849,7 @@ function calMove(dir){
 function openDayPanel(ds){
   document.getElementById('dpTitle').textContent=`${fmtDate(ds)}, ${ds.slice(0,4)}`
   document.getElementById('dpAddBtn').onclick=()=>openAddEvent(ds)
-  const evs=S.events.filter(e=>e.date===ds)
+  const evs=S.events.filter(e=>e.date===ds&&calVisible(e))
   document.getElementById('dpItems').innerHTML=evs.length?evs.map(e=>`
     <div class="dp-item">
       <div class="dp-item-row">
@@ -3317,7 +3320,7 @@ function renderHome(){
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening'
 
   const upcomingBills = S.events
-    .filter(e => !e.checked && e.date >= today && e.date.startsWith('2026') && e.amount < 0)
+    .filter(e => (e.type==='bill'||e.type==='critical') && !e.checked && e.date >= today)
     .sort((a,b) => a.date.localeCompare(b.date))
     .slice(0, 5)
 
@@ -3331,7 +3334,8 @@ function renderHome(){
     return {name: med.name, status: log?.status || 'pending'}
   })
 
-  const actual = actualBalance()
+  const cleared = clearedBalance()
+  const actual = trueActualBalance()
   const projected = projectedBalance()
 
   document.getElementById('tab-home').innerHTML = `
@@ -3347,11 +3351,15 @@ function renderHome(){
           </div>
           <div style="display:flex;gap:20px;flex-wrap:wrap">
             <div style="text-align:right">
-              <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.07em;color:var(--text3);margin-bottom:4px">Actual Balance</div>
+              <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.07em;color:var(--text3);margin-bottom:4px">Cleared</div>
+              <div style="font-size:32px;font-weight:800;letter-spacing:-0.02em;color:${cleared>=0?'var(--coral)':'#E83030'}">${fmt(cleared)}</div>
+            </div>
+            <div style="text-align:right">
+              <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.07em;color:var(--text3);margin-bottom:4px">Actual</div>
               <div style="font-size:32px;font-weight:800;letter-spacing:-0.02em;color:${actual>=0?'var(--coral)':'#E83030'}">${fmt(actual)}</div>
             </div>
             <div style="text-align:right">
-              <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.07em;color:var(--text3);margin-bottom:4px">Year-End Projection</div>
+              <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.07em;color:var(--text3);margin-bottom:4px">Year-End</div>
               <div style="font-size:32px;font-weight:800;letter-spacing:-0.02em;color:${projected>=0?'var(--teal)':'#E83030'}">${fmt(projected)}</div>
             </div>
           </div>

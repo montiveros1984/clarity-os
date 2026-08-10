@@ -10,7 +10,7 @@ Concise reference for what's built, where it lives, and what data it touches.
 - **PIN lock screen** — 4-digit PIN gate on app load, stored in `localStorage` (`clarity_pin`, base64). Keyboard entry supported. "Forgot PIN" resets and prompts to set a new one.
   - Quirk: PIN is obfuscated with `btoa`, not real encryption — single-user/local-trust model only.
 - **Sidebar nav** (desktop) / **bottom nav** (mobile) — switches between tabs: Home, Finance, Calendar, Weekly, Bills, Goals, Income, Spending, Medications, Paycheck.
-- **Topbar balance chips** — always-visible "Actual Balance" and "Year-End" (projected) balance, updated on every data change.
+- **Topbar balance chips** — always-visible "Cleared", "Actual" (cleared + processing), and "Year-End" (projected) balance, updated on every data change.
 - **Update Balance** (sidebar footer, ⚙️) — opens a modal to set/re-anchor the opening balance. Updates the `events` row with `type='start'` (or creates one if missing), dated today.
 - **Undo toast** — bottom toast with 6-second window after deleting an event, bill, goal, or category. Restores the deleted record(s).
 - **Brain + Oregon wildflowers illustration** — decorative SVG in sidebar (no data).
@@ -19,8 +19,8 @@ Concise reference for what's built, where it lives, and what data it touches.
 
 ## Home (Dashboard)
 
-- Greeting + today's date (local time), Actual Balance and Year-End Projection (from `events`).
-- **Upcoming Payments** widget — next 5 unchecked, future, negative-amount `events` in 2026, sorted by date. Links to Finance tab.
+- Greeting + today's date (local time), plus Cleared / Actual / Year-End balance chips (same logic as the topbar chips: `clearedBalance()`, `trueActualBalance()`, `projectedBalance()`).
+- **Upcoming Payments** widget — next 5 unchecked `bill`/`critical` events dated today or later, sorted by date. Links to Finance tab.
 - **Goals Progress** widget — overall % complete + top 3 incomplete goals with progress bars (`goals` table). Links to Goals tab.
 - **Medications Today** widget — today's status (taken/skip/missed/pending) per medication from `medications` + `med_logs`. Links to Meds tab.
 - **Fasting Tracker, Verse of the Day, Todos Today, Habits & Streaks** — placeholder "Coming soon" cards, no data yet.
@@ -109,6 +109,7 @@ A persistent inline row between the filter bar and the ledger table (glassmorphi
 - Each day cell shows up to 3 pills (label, colored by type: income/borrow/start = green-ish, critical = red, bill = default) plus a "+N more" indicator.
 - Today's cell is highlighted (`is-today`, local date).
 - Clicking a day opens the **Day Panel** (slide-out): lists all events for that date with type badge, amount, and a checkbox to toggle paid (except `start`). Has its own "+ Add Entry" button pre-filled with that date.
+- **Visibility filter** (`calVisible`) — applies to both the month grid and the Day Panel: an event shows only if its type is `income`/`bill`/`critical`/`borrow`, or it's `checked`, or it's `processing`. Unchecked, non-processing `purchase`/`extra`/`repay` entries are hidden from Calendar entirely.
 
 ---
 
