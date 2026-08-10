@@ -317,6 +317,14 @@ tr.dragging{ opacity: 0.4; }
   .forecast-stat{ min-width: 0; }
 }
 
+.timeline-sticky-hdr{
+  position: sticky; top: var(--topbar-h, 0px); z-index: 100;
+  background: rgba(255,248,252,0.92);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding-top: 2px; padding-bottom: 2px;
+  margin-top: -2px;
+}
 .filter-bar{ display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 16px; }
 .filter-bar select, .filter-bar input[type=text], .filter-bar input[type=number]{
   background: var(--card); border: 1px solid var(--border2);
@@ -352,10 +360,10 @@ tr.dragging{ opacity: 0.4; }
 .qe-input::placeholder{ color: var(--text3); }
 .qe-input:focus{ outline: none; border-color: var(--pink); }
 .qe-date{ width: 140px; flex-shrink: 0; }
-.qe-label{ flex: 2; min-width: 120px; }
 .qe-amount{ width: 110px; flex-shrink: 0; }
 .qe-autocomplete{ position: relative; flex: 1; min-width: 110px; }
 .qe-autocomplete .qe-input{ width: 100%; }
+.qe-label-wrap{ flex: 2; min-width: 120px; }
 .qe-dropdown{
   display: none; position: fixed; box-sizing: border-box;
   background: var(--card); border: 1px solid var(--border2); border-radius: var(--r-sm);
@@ -861,6 +869,7 @@ tr.dragging{ opacity: 0.4; }
 
   <!-- TIMELINE -->
   <div id="tab-timeline" style="display:none">
+    <div class="timeline-sticky-hdr" id="timelineStickyHdr">
     <div class="sec-hdr">
       <div class="sec-title">Transaction Ledger</div>
       <div class="sec-actions" style="flex-wrap:wrap">
@@ -912,15 +921,19 @@ tr.dragging{ opacity: 0.4; }
     </div>
     <div class="quick-entry-bar" id="quickEntryBar">
       <input type="date" id="qeDate" class="qe-input qe-date" onkeydown="qeHandleEnter(event,'date')">
-      <input type="text" id="qeLabel" class="qe-input qe-label" placeholder="Label" oninput="this.classList.remove('invalid')" onkeydown="qeHandleEnter(event,'label')">
+      <div class="qe-autocomplete qe-label-wrap" id="qeLabelWrap">
+        <input type="text" id="qeLabel" class="qe-input qe-label" placeholder="Label" autocomplete="off"
+          oninput="qeFilter('label',event)" onfocus="qeOpen('label')" onkeydown="qeKeydown(event,'label')" onblur="qeBlur('label')">
+        <div class="qe-dropdown" id="qeLabelDropdown"></div>
+      </div>
       <div class="qe-amount-wrap" id="qeAmountWrap">
         <input type="number" id="qeAmount" class="qe-input qe-amount" placeholder="Amount" step="0.01" oninput="this.classList.remove('invalid'); qeClearDupWarning()" onblur="qeCheckDuplicate()" onkeydown="qeHandleEnter(event,'amount')">
         <div class="qe-dup-warning" id="qeDupWarning"></div>
       </div>
       <button type="button" id="qeSign" class="qe-sign" onclick="qeToggleSign()">−</button>
       <div class="qe-autocomplete" id="qeTypeWrap">
-        <input type="text" id="qeType" class="qe-input qe-type" placeholder="Type" autocomplete="off"
-          oninput="qeFilter('type',event)" onfocus="qeOpen('type')" onkeydown="qeKeydown(event,'type')" onblur="qeBlur('type')">
+        <input type="text" id="qeType" class="qe-input qe-type" placeholder="Type" autocomplete="off" value="purchase"
+          oninput="qeFilter('type',event)" onclick="qeOpen('type')" onkeydown="qeKeydown(event,'type')" onblur="qeBlur('type')">
         <div class="qe-dropdown" id="qeTypeDropdown"></div>
       </div>
       <div class="qe-autocomplete" id="qeCatWrap">
@@ -929,6 +942,7 @@ tr.dragging{ opacity: 0.4; }
         <div class="qe-dropdown" id="qeCatDropdown"></div>
       </div>
       <button class="btn btn-primary btn-sm" id="qeSaveBtn" onclick="qeSubmit()">Save</button>
+    </div>
     </div>
     <div class="table-wrap">
       <table>
@@ -2744,20 +2758,57 @@ async function doDeleteEvent(id){
 // QUICK ENTRY BAR
 const QE_TYPES = ['purchase','income','bill','critical','borrow','repay','extra','start']
 const QE_CAT_TYPES = ['bill','critical','purchase','extra','repay','borrow']
-const qeHighlight = {type:-1, cat:-1}
+const QE_TYPE_DEFAULT = 'purchase'
+const qeHighlight = {type:-1, cat:-1, label:-1}
+let qeLabelCache = []
+let qeTypeDefaulted = true
 
 function qeInit(){
   const d=document.getElementById('qeDate')
   if(d && !d.value) d.value=todayStr()
+  qeBuildLabelCache()
+  qeSyncStickyOffset()
+  window.addEventListener('scroll', qeRepositionOpenDropdowns, true)
+  window.addEventListener('resize', ()=>{ qeRepositionOpenDropdowns(); qeSyncStickyOffset() })
+}
+
+function qeSyncStickyOffset(){
+  const topbar=document.querySelector('.topbar')
+  const h=topbar?Math.round(topbar.getBoundingClientRect().height):0
+  document.documentElement.style.setProperty('--topbar-h', h+'px')
+}
+
+function qeBuildLabelCache(){
+  qeLabelCache=[...new Set((S.events||[]).map(e=>e.label).filter(Boolean))].sort((a,b)=>a.localeCompare(b))
+}
+
+function qeRepositionOpenDropdowns(){
+  ['type','cat','label'].forEach(field=>{
+    const dd=qeDropdownEl(field)
+    if(dd && dd.style.display==='block') qePositionDropdown(field)
+  })
 }
 
 function qeCatOptions(){
   return [...new Set([...S.categories.map(c=>c.name), ...S.spendCats.map(c=>c.name)])]
 }
-function qeOptionsFor(field){ return field==='type' ? QE_TYPES : qeCatOptions() }
-function qeFieldEl(field){ return document.getElementById(field==='type'?'qeType':'qeCat') }
-function qeDropdownEl(field){ return document.getElementById(field==='type'?'qeTypeDropdown':'qeCatDropdown') }
+function qeOptionsFor(field){
+  if(field==='type') return QE_TYPES
+  if(field==='label') return qeLabelCache
+  return qeCatOptions()
+}
+function qeFieldEl(field){
+  if(field==='type') return document.getElementById('qeType')
+  if(field==='label') return document.getElementById('qeLabel')
+  return document.getElementById('qeCat')
+}
+function qeDropdownEl(field){
+  if(field==='type') return document.getElementById('qeTypeDropdown')
+  if(field==='label') return document.getElementById('qeLabelDropdown')
+  return document.getElementById('qeCatDropdown')
+}
 function qeFilteredOpts(field){
+  if(field==='type' && qeTypeDefaulted) return qeOptionsFor(field)
   const q=qeFieldEl(field).value.trim().toLowerCase()
   return qeOptionsFor(field).filter(o=>!q||o.toLowerCase().includes(q))
 }
@@ -2766,6 +2817,7 @@ function qeOpen(field){ qeHighlight[field]=-1; qeRenderDropdown(field) }
 function qeFilter(field,e){
   const el=qeFieldEl(field)
   el.classList.remove('invalid')
+  if(field==='type') qeTypeDefaulted=false
   qeHighlight[field]=-1
   qeRenderDropdown(field)
   const isDeleting = e && /delete/i.test(e.inputType||'')
@@ -2794,7 +2846,14 @@ function qeRenderDropdown(field){
   const dd=qeDropdownEl(field)
   const opts=qeFilteredOpts(field)
   if(!opts.length){ dd.style.display='none'; dd.innerHTML=''; return }
-  dd.innerHTML=opts.map((o,i)=>`<div class="qe-option${i===qeHighlight[field]?' hl':''}" onmousedown="qeSelectOption('${field}','${esc(o)}')">${esc(o)}</div>`).join('')
+  dd.innerHTML=''
+  opts.forEach((o,i)=>{
+    const opt=document.createElement('div')
+    opt.className='qe-option'+(i===qeHighlight[field]?' hl':'')
+    opt.textContent=o
+    opt.onmousedown=()=>qeSelectOption(field,o)
+    dd.appendChild(opt)
+  })
   qePositionDropdown(field)
   dd.style.display='block'
 }
@@ -2809,8 +2868,10 @@ function qeSelectOption(field,val){
   const input=qeFieldEl(field)
   input.value=val
   input.classList.remove('invalid')
+  if(field==='type') qeTypeDefaulted=false
   qeCloseDropdown(field)
   if(field==='type') document.getElementById('qeCat').focus()
+  else if(field==='label') document.getElementById('qeAmount').focus()
   else qeSubmit()
 }
 
@@ -2835,6 +2896,7 @@ function qeKeydown(e,field){
     } else {
       qeCloseDropdown(field)
       if(field==='type') document.getElementById('qeCat').focus()
+      else if(field==='label') document.getElementById('qeAmount').focus()
       else qeSubmit()
     }
   } else if(e.key==='Escape'){
@@ -2911,7 +2973,7 @@ function qeValidate(){
 }
 
 async function qeSubmit(){
-  qeCloseDropdown('type'); qeCloseDropdown('cat')
+  qeCloseDropdown('type'); qeCloseDropdown('cat'); qeCloseDropdown('label')
   if(!qeValidate()) return
   const ev={
     id:uid(),
@@ -2924,9 +2986,11 @@ async function qeSubmit(){
     checked:false
   }
   await insertEvent(ev)
+  qeBuildLabelCache()
   document.getElementById('qeLabel').value=''
   document.getElementById('qeAmount').value=''
-  document.getElementById('qeType').value=''
+  document.getElementById('qeType').value=QE_TYPE_DEFAULT
+  qeTypeDefaulted=true
   document.getElementById('qeCat').value=''
   const signBtn=document.getElementById('qeSign')
   if(signBtn){ signBtn.textContent='−'; signBtn.classList.remove('positive') }
