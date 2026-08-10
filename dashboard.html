@@ -357,17 +357,26 @@ tr.dragging{ opacity: 0.4; }
 .qe-autocomplete{ position: relative; flex: 1; min-width: 110px; }
 .qe-autocomplete .qe-input{ width: 100%; }
 .qe-dropdown{
-  display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+  display: none; position: absolute; bottom: calc(100% + 4px); left: 0; right: 0;
   background: var(--card); border: 1px solid var(--border2); border-radius: var(--r-sm);
-  box-shadow: 0 8px 24px rgba(180,120,150,0.18);
+  box-shadow: 0 -8px 24px rgba(180,120,150,0.18);
   max-height: 220px; overflow-y: auto; z-index: 40;
 }
 .qe-option{ padding: 7px 11px; font-size: 13px; cursor: pointer; }
 .qe-option:hover, .qe-option.hl{ background: var(--pink-bg); color: var(--pink); }
 #qeSaveBtn{ flex-shrink: 0; align-self: stretch; }
+.qe-amount-wrap{ position: relative; width: 110px; flex-shrink: 0; }
+.qe-amount-wrap .qe-amount{ width: 100%; }
+.qe-dup-warning{
+  display: none; position: absolute; top: calc(100% + 4px); left: 0;
+  min-width: 260px; background: var(--card); border: 1px solid var(--coral);
+  border-radius: var(--r-sm); padding: 6px 10px; font-size: 12px; color: var(--coral);
+  box-shadow: 0 4px 14px rgba(180,120,150,0.15); z-index: 35; white-space: nowrap;
+}
 @media (max-width: 640px){
   .quick-entry-bar{ flex-direction: column; align-items: stretch; }
-  .qe-date, .qe-amount{ width: 100%; }
+  .qe-date, .qe-amount-wrap{ width: 100%; }
+  .qe-dup-warning{ white-space: normal; }
 }
 
 /* ─── PROGRESS ───────────────────────────────── */
@@ -896,7 +905,10 @@ tr.dragging{ opacity: 0.4; }
     <div class="quick-entry-bar" id="quickEntryBar">
       <input type="date" id="qeDate" class="qe-input qe-date" onkeydown="qeHandleEnter(event,'date')">
       <input type="text" id="qeLabel" class="qe-input qe-label" placeholder="Label" oninput="this.classList.remove('invalid')" onkeydown="qeHandleEnter(event,'label')">
-      <input type="number" id="qeAmount" class="qe-input qe-amount" placeholder="Amount" step="0.01" oninput="this.classList.remove('invalid')" onkeydown="qeHandleEnter(event,'amount')">
+      <div class="qe-amount-wrap" id="qeAmountWrap">
+        <input type="number" id="qeAmount" class="qe-input qe-amount" placeholder="Amount" step="0.01" oninput="this.classList.remove('invalid'); qeClearDupWarning()" onblur="qeCheckDuplicate()" onkeydown="qeHandleEnter(event,'amount')">
+        <div class="qe-dup-warning" id="qeDupWarning"></div>
+      </div>
       <div class="qe-autocomplete" id="qeTypeWrap">
         <input type="text" id="qeType" class="qe-input qe-type" placeholder="Type" autocomplete="off"
           oninput="qeFilter('type')" onfocus="qeOpen('type')" onkeydown="qeKeydown(event,'type')" onblur="qeBlur('type')">
@@ -2806,6 +2818,31 @@ function qeHandleEnter(e,field){
   else if(field==='amount') document.getElementById('qeType').focus()
 }
 
+function qeClearDupWarning(){
+  const warnEl=document.getElementById('qeDupWarning')
+  if(!warnEl) return
+  warnEl.style.display='none'; warnEl.innerHTML=''
+}
+function qeCheckDuplicate(){
+  const warnEl=document.getElementById('qeDupWarning')
+  const date=document.getElementById('qeDate').value
+  const label=document.getElementById('qeLabel').value.trim().toLowerCase()
+  const amtVal=document.getElementById('qeAmount').value
+  const amt=parseFloat(amtVal)
+  if(!warnEl || !date || amtVal===''||isNaN(amt)){ qeClearDupWarning(); return }
+  const match=S.events.find(e=>
+    e.date===date &&
+    +e.amount===amt &&
+    e.type!=='bill' && e.type!=='critical' &&
+    (e.label||'').toLowerCase().includes(label)
+  )
+  if(match){
+    warnEl.innerHTML=`⚠️ Similar entry: ${esc(fmtDate(match.date))} · ${esc(match.label)} · ${esc(fmt(match.amount))}`
+    warnEl.style.display='block'
+  } else {
+    qeClearDupWarning()
+  }
+}
 function qeNeedsCat(){ return QE_CAT_TYPES.includes(document.getElementById('qeType').value) }
 
 function qeValidate(){
@@ -2846,6 +2883,7 @@ async function qeSubmit(){
   document.getElementById('qeAmount').value=''
   document.getElementById('qeType').value=''
   document.getElementById('qeCat').value=''
+  qeClearDupWarning()
   renderCurrent()
   document.getElementById('qeLabel').focus()
 }

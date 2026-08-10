@@ -93,10 +93,11 @@ When "Hide Paid" is active, all checked/start items collapse into one row showin
 A persistent inline row between the filter bar and the ledger table (glassmorphism style matching the rest of the toolbar) — no modal. Fields in tab order: Date, Label, Amount, Type, Category, Save.
 - **Date** — defaults to today on page load, then persists across saves (never auto-clears).
 - **Label / Amount** — clear after each save; focus returns to Label automatically. Amount is a plain signed number (negative = expense, positive = income), no sign toggle.
-- **Type / Category** — free-text fields with an inline autocomplete dropdown (opens on focus, filters as you type, ↑/↓ to navigate, Enter/click to select). Both clear after save. Category is required only for types that need one (bill/critical/purchase/extra/repay/borrow), same rule as the Add Entry modal.
+- **Type / Category** — free-text fields with an inline autocomplete dropdown that opens **upward** (above the field, so it never overlaps the ledger below), filters as you type, ↑/↓ to navigate, Enter/click to select. Both clear after save. Category is required only for types that need one (bill/critical/purchase/extra/repay/borrow), same rule as the Add Entry modal.
 - Pressing Enter advances Date→Label→Amount→Type→Category; Enter on Category (or clicking Save) submits.
 - Reuses `insertEvent()` — the same insert path as the Add Entry modal — so new rows land in the correct chronological position and the forecast strip/balances update immediately.
 - **Validation**: empty required fields are outlined in coral and block save, same as the modal.
+- **Possible duplicate warning** — on blur of Amount, checks existing `events` for a same-date, exact-amount match where the label contains the current Label text (case-insensitive) and type isn't `bill`/`critical`. If found, shows a small coral "⚠️ Similar entry: [date] · [label] · [amount]" note below the Amount field — informational only, doesn't block save. Clears when Amount changes or the entry is saved.
 
 ---
 
