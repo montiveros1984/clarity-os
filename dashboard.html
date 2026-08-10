@@ -357,10 +357,10 @@ tr.dragging{ opacity: 0.4; }
 .qe-autocomplete{ position: relative; flex: 1; min-width: 110px; }
 .qe-autocomplete .qe-input{ width: 100%; }
 .qe-dropdown{
-  display: none; position: absolute; top: calc(100% + 4px); left: 0; width: 100%; box-sizing: border-box;
+  display: none; position: fixed; box-sizing: border-box;
   background: var(--card); border: 1px solid var(--border2); border-radius: var(--r-sm);
   box-shadow: 0 8px 24px rgba(180,120,150,0.18);
-  max-height: 220px; overflow-y: auto; z-index: 40;
+  max-height: 220px; overflow-y: auto; z-index: 9999;
 }
 .qe-option{ padding: 7px 11px; font-size: 13px; cursor: pointer; }
 .qe-option:hover, .qe-option.hl{ background: var(--pink-bg); color: var(--pink); }
@@ -2782,11 +2782,20 @@ function qeInlineComplete(field){
   el.value=match
   el.setSelectionRange(typed.length,match.length)
 }
+function qePositionDropdown(field){
+  const dd=qeDropdownEl(field)
+  if(dd.parentNode!==document.body) document.body.appendChild(dd)
+  const rect=qeFieldEl(field).getBoundingClientRect()
+  dd.style.top=(rect.bottom+4)+'px'
+  dd.style.left=rect.left+'px'
+  dd.style.width=rect.width+'px'
+}
 function qeRenderDropdown(field){
   const dd=qeDropdownEl(field)
   const opts=qeFilteredOpts(field)
   if(!opts.length){ dd.style.display='none'; dd.innerHTML=''; return }
   dd.innerHTML=opts.map((o,i)=>`<div class="qe-option${i===qeHighlight[field]?' hl':''}" onmousedown="qeSelectOption('${field}','${esc(o)}')">${esc(o)}</div>`).join('')
+  qePositionDropdown(field)
   dd.style.display='block'
 }
 function qeCloseDropdown(field){
