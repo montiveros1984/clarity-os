@@ -331,6 +331,45 @@ tr.dragging{ opacity: 0.4; }
 .filter-clear{ font-size: 12px; color: var(--text3); cursor: pointer; padding: 4px 8px; border-radius: var(--r-sm); border: none; background: transparent; transition: all 0.15s; }
 .filter-clear:hover{ color: var(--coral); background: var(--coral-bg); }
 
+.quick-entry-bar{
+  display: flex; gap: 8px; align-items: flex-start; flex-wrap: nowrap;
+  background: rgba(255,255,255,0.78);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255,255,255,0.9);
+  border-radius: var(--r);
+  box-shadow: 0 4px 20px rgba(180,120,150,0.10), inset 0 1px 0 rgba(255,255,255,0.95);
+  padding: 10px 12px;
+  margin-bottom: 16px;
+  position: relative;
+}
+.qe-input{
+  background: var(--card); border: 1px solid var(--border2);
+  border-radius: var(--r-sm); color: var(--text);
+  padding: 7px 11px; font-size: 13px; box-shadow: var(--shadow);
+}
+.qe-input.invalid{ border-color: var(--coral) !important; box-shadow: 0 0 0 3px rgba(255,107,107,0.12); }
+.qe-input::placeholder{ color: var(--text3); }
+.qe-input:focus{ outline: none; border-color: var(--pink); }
+.qe-date{ width: 140px; flex-shrink: 0; }
+.qe-label{ flex: 2; min-width: 120px; }
+.qe-amount{ width: 110px; flex-shrink: 0; }
+.qe-autocomplete{ position: relative; flex: 1; min-width: 110px; }
+.qe-autocomplete .qe-input{ width: 100%; }
+.qe-dropdown{
+  display: none; position: absolute; top: calc(100% + 4px); left: 0; right: 0;
+  background: var(--card); border: 1px solid var(--border2); border-radius: var(--r-sm);
+  box-shadow: 0 8px 24px rgba(180,120,150,0.18);
+  max-height: 220px; overflow-y: auto; z-index: 40;
+}
+.qe-option{ padding: 7px 11px; font-size: 13px; cursor: pointer; }
+.qe-option:hover, .qe-option.hl{ background: var(--pink-bg); color: var(--pink); }
+#qeSaveBtn{ flex-shrink: 0; align-self: stretch; }
+@media (max-width: 640px){
+  .quick-entry-bar{ flex-direction: column; align-items: stretch; }
+  .qe-date, .qe-amount{ width: 100%; }
+}
+
 /* ─── PROGRESS ───────────────────────────────── */
 .prog-track{ height: 7px; background: var(--border); border-radius: 4px; }
 .prog-fill{ height: 7px; border-radius: 4px; background: linear-gradient(90deg, var(--pink), var(--lavender)); transition: width 0.4s ease; }
@@ -853,6 +892,22 @@ tr.dragging{ opacity: 0.4; }
         <option value="unpaid">Upcoming</option>
       </select>
       <button class="filter-clear" onclick="clearFilters()">✕ Clear</button>
+    </div>
+    <div class="quick-entry-bar" id="quickEntryBar">
+      <input type="date" id="qeDate" class="qe-input qe-date" onkeydown="qeHandleEnter(event,'date')">
+      <input type="text" id="qeLabel" class="qe-input qe-label" placeholder="Label" oninput="this.classList.remove('invalid')" onkeydown="qeHandleEnter(event,'label')">
+      <input type="number" id="qeAmount" class="qe-input qe-amount" placeholder="Amount" step="0.01" oninput="this.classList.remove('invalid')" onkeydown="qeHandleEnter(event,'amount')">
+      <div class="qe-autocomplete" id="qeTypeWrap">
+        <input type="text" id="qeType" class="qe-input qe-type" placeholder="Type" autocomplete="off"
+          oninput="qeFilter('type')" onfocus="qeOpen('type')" onkeydown="qeKeydown(event,'type')" onblur="qeBlur('type')">
+        <div class="qe-dropdown" id="qeTypeDropdown"></div>
+      </div>
+      <div class="qe-autocomplete" id="qeCatWrap">
+        <input type="text" id="qeCat" class="qe-input qe-cat" placeholder="Category" autocomplete="off"
+          oninput="qeFilter('cat')" onfocus="qeOpen('cat')" onkeydown="qeKeydown(event,'cat')" onblur="qeBlur('cat')">
+        <div class="qe-dropdown" id="qeCatDropdown"></div>
+      </div>
+      <button class="btn btn-primary btn-sm" id="qeSaveBtn" onclick="qeSubmit()">Save</button>
     </div>
     <div class="table-wrap">
       <table>
@@ -2665,6 +2720,136 @@ async function doDeleteEvent(id){
   await deleteEvent(id); closeModal(); showUndo('Entry deleted'); renderCurrent()
 }
 
+// QUICK ENTRY BAR
+const QE_TYPES = ['purchase','income','bill','critical','borrow','repay','extra','start']
+const QE_CAT_TYPES = ['bill','critical','purchase','extra','repay','borrow']
+const qeHighlight = {type:-1, cat:-1}
+
+function qeInit(){
+  const d=document.getElementById('qeDate')
+  if(d && !d.value) d.value=todayStr()
+}
+
+function qeCatOptions(){
+  return [...new Set([...S.categories.map(c=>c.name), ...S.spendCats.map(c=>c.name)])]
+}
+function qeOptionsFor(field){ return field==='type' ? QE_TYPES : qeCatOptions() }
+function qeFieldEl(field){ return document.getElementById(field==='type'?'qeType':'qeCat') }
+function qeDropdownEl(field){ return document.getElementById(field==='type'?'qeTypeDropdown':'qeCatDropdown') }
+function qeFilteredOpts(field){
+  const q=qeFieldEl(field).value.trim().toLowerCase()
+  return qeOptionsFor(field).filter(o=>!q||o.toLowerCase().includes(q))
+}
+
+function qeOpen(field){ qeHighlight[field]=-1; qeRenderDropdown(field) }
+function qeFilter(field){
+  qeFieldEl(field).classList.remove('invalid')
+  qeHighlight[field]=-1
+  qeRenderDropdown(field)
+}
+function qeRenderDropdown(field){
+  const dd=qeDropdownEl(field)
+  const opts=qeFilteredOpts(field)
+  if(!opts.length){ dd.style.display='none'; dd.innerHTML=''; return }
+  dd.innerHTML=opts.map((o,i)=>`<div class="qe-option${i===qeHighlight[field]?' hl':''}" onmousedown="qeSelectOption('${field}','${esc(o)}')">${esc(o)}</div>`).join('')
+  dd.style.display='block'
+}
+function qeCloseDropdown(field){
+  const dd=qeDropdownEl(field)
+  dd.style.display='none'; dd.innerHTML=''
+  qeHighlight[field]=-1
+}
+function qeBlur(field){ setTimeout(()=>qeCloseDropdown(field),150) }
+
+function qeSelectOption(field,val){
+  const input=qeFieldEl(field)
+  input.value=val
+  input.classList.remove('invalid')
+  qeCloseDropdown(field)
+  if(field==='type') document.getElementById('qeCat').focus()
+  else qeSubmit()
+}
+
+function qeKeydown(e,field){
+  if(e.key==='ArrowDown'){
+    e.preventDefault()
+    const opts=qeFilteredOpts(field)
+    if(qeDropdownEl(field).style.display!=='block'){ qeOpen(field); return }
+    qeHighlight[field]=Math.min(qeHighlight[field]+1,opts.length-1)
+    qeRenderDropdown(field)
+  } else if(e.key==='ArrowUp'){
+    e.preventDefault()
+    qeHighlight[field]=Math.max(qeHighlight[field]-1,0)
+    qeRenderDropdown(field)
+  } else if(e.key==='Enter'){
+    e.preventDefault()
+    const opts=qeFilteredOpts(field)
+    if(qeHighlight[field]>=0 && opts[qeHighlight[field]]!==undefined){
+      qeSelectOption(field,opts[qeHighlight[field]])
+    } else if(opts.length===1){
+      qeSelectOption(field,opts[0])
+    } else {
+      qeCloseDropdown(field)
+      if(field==='type') document.getElementById('qeCat').focus()
+      else qeSubmit()
+    }
+  } else if(e.key==='Escape'){
+    qeCloseDropdown(field)
+  }
+}
+
+function qeHandleEnter(e,field){
+  if(e.key!=='Enter') return
+  e.preventDefault()
+  if(field==='date') document.getElementById('qeLabel').focus()
+  else if(field==='label') document.getElementById('qeAmount').focus()
+  else if(field==='amount') document.getElementById('qeType').focus()
+}
+
+function qeNeedsCat(){ return QE_CAT_TYPES.includes(document.getElementById('qeType').value) }
+
+function qeValidate(){
+  const dateEl=document.getElementById('qeDate')
+  const labelEl=document.getElementById('qeLabel')
+  const amtEl=document.getElementById('qeAmount')
+  const typeEl=document.getElementById('qeType')
+  const catEl=document.getElementById('qeCat')
+  const fields=[dateEl,labelEl,amtEl,typeEl]
+  if(qeNeedsCat()) fields.push(catEl)
+  let valid=true
+  for(const el of fields){
+    let empty=!el.value||!String(el.value).trim()
+    if(el===amtEl&&!empty&&parseFloat(el.value)===0) empty=true
+    if(el===typeEl&&!empty&&!QE_TYPES.includes(el.value)) empty=true
+    if(el===catEl&&!empty&&!qeCatOptions().includes(el.value)) empty=true
+    el.classList.toggle('invalid',empty)
+    if(empty) valid=false
+  }
+  return valid
+}
+
+async function qeSubmit(){
+  qeCloseDropdown('type'); qeCloseDropdown('cat')
+  if(!qeValidate()) return
+  const ev={
+    id:uid(),
+    date:document.getElementById('qeDate').value,
+    label:document.getElementById('qeLabel').value.trim(),
+    amount:parseFloat(document.getElementById('qeAmount').value),
+    type:document.getElementById('qeType').value,
+    tx_category: qeNeedsCat() ? document.getElementById('qeCat').value : '',
+    bill_id:null,
+    checked:false
+  }
+  await insertEvent(ev)
+  document.getElementById('qeLabel').value=''
+  document.getElementById('qeAmount').value=''
+  document.getElementById('qeType').value=''
+  document.getElementById('qeCat').value=''
+  renderCurrent()
+  document.getElementById('qeLabel').focus()
+}
+
 // BILL MODALS
 function openAddBill(){
   const opts=S.categories.map(c=>`<option value="${esc(c.name)}">${esc(c.name)}</option>`).join('')
@@ -3121,6 +3306,7 @@ async function init(){
   await migrateIfNeeded()
   updateBalDisplay()
   renderHome()
+  qeInit()
 }
 
 init()

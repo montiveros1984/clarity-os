@@ -89,6 +89,15 @@ When "Hide Paid" is active, all checked/start items collapse into one row showin
 - **Validation**: Date, Label, Amount (must be nonzero), and Category (when applicable) are required. Empty/invalid fields are outlined in coral and block save until fixed.
 - New entries auto-insert into the correct chronological position (no manual reordering needed).
 
+### Quick Entry bar
+A persistent inline row between the filter bar and the ledger table (glassmorphism style matching the rest of the toolbar) — no modal. Fields in tab order: Date, Label, Amount, Type, Category, Save.
+- **Date** — defaults to today on page load, then persists across saves (never auto-clears).
+- **Label / Amount** — clear after each save; focus returns to Label automatically. Amount is a plain signed number (negative = expense, positive = income), no sign toggle.
+- **Type / Category** — free-text fields with an inline autocomplete dropdown (opens on focus, filters as you type, ↑/↓ to navigate, Enter/click to select). Both clear after save. Category is required only for types that need one (bill/critical/purchase/extra/repay/borrow), same rule as the Add Entry modal.
+- Pressing Enter advances Date→Label→Amount→Type→Category; Enter on Category (or clicking Save) submits.
+- Reuses `insertEvent()` — the same insert path as the Add Entry modal — so new rows land in the correct chronological position and the forecast strip/balances update immediately.
+- **Validation**: empty required fields are outlined in coral and block save, same as the modal.
+
 ---
 
 ## Calendar — `tab-calendar`
